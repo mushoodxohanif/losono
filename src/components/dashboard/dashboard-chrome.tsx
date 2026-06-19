@@ -6,7 +6,25 @@ import { SignOutDropdownItem } from "@/components/dashboard/sign-out-dropdown-it
 import { listAgentsForUser } from "@/lib/db/queries/agents";
 
 export function DashboardSidebarFallback() {
-  return <AppSidebar agents={[]} />;
+  return (
+    <div
+      className="hidden h-svh w-64 shrink-0 border-r border-border bg-sidebar md:block"
+      aria-hidden
+    >
+      <div className="flex h-full flex-col gap-6 p-4">
+        <div className="h-10 animate-pulse rounded-lg bg-muted/60" />
+        <div className="space-y-2">
+          <div className="h-3 w-16 animate-pulse rounded bg-muted/40" />
+          <div className="h-9 animate-pulse rounded-md bg-muted/60" />
+          <div className="h-9 animate-pulse rounded-md bg-muted/60" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-3 w-12 animate-pulse rounded bg-muted/40" />
+          <div className="h-9 animate-pulse rounded-md bg-muted/60" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function DashboardHeaderFallback() {
