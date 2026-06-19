@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 168 32" fill="none" role="img" aria-label="Losono">
+  <rect width="32" height="32" rx="8" fill="#E8772E"/>
+  <path
+    d="M9 10.5C9 8.57 10.57 7 12.5 7h9c1.93 0 3.5 1.57 3.5 3.5v5.25c0 1.93-1.57 3.5-3.5 3.5H14.8L12 21.5v-2.25H12.5c-1.93 0-3.5-1.57-3.5-3.5V10.5z"
+    fill="#fff"
+  />
+  <rect x="13" y="12" width="1.75" height="5" rx="0.875" fill="#4F5FD0"/>
+  <rect x="16.125" y="10.5" width="1.75" height="7.5" rx="0.875" fill="#4F5FD0"/>
+  <rect x="19.25" y="11.75" width="1.75" height="5.5" rx="0.875" fill="#4F5FD0"/>
+  <text
+    x="44"
+    y="22.5"
+    fill="#1F1F1F"
+    font-family="Inter, system-ui, -apple-system, sans-serif"
+    font-size="20"
+    font-weight="600"
+    letter-spacing="-0.02em"
+  >
+    Losono
+  </text>
+</svg>
