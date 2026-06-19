@@ -1,5 +1,5 @@
 import mammoth from "mammoth";
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { extractText, getDocumentProxy } from "unpdf";
 import { chunkText, type TextChunk } from "@/lib/rag/chunk";
 import { getIngestStrategy, type IngestStrategy } from "@/lib/rag/mime";
 
@@ -28,27 +28,9 @@ async function extractDocxText(buffer: Buffer): Promise<string> {
 }
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
-  const doc = await getDocument({
-    data: new Uint8Array(buffer),
-    useSystemFonts: true,
-  }).promise;
-
-  const pageTexts: string[] = [];
-
-  for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {
-    const page = await doc.getPage(pageNumber);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      .map((item) => ("str" in item ? (item.str ?? "") : ""))
-      .join(" ")
-      .trim();
-
-    if (pageText) {
-      pageTexts.push(pageText);
-    }
-  }
-
-  return pageTexts.join("\n\n").trim();
+  const pdf = await getDocumentProxy(new Uint8Array(buffer));
+  const { text } = await extractText(pdf, { mergePages: true });
+  return text.trim();
 }
 
 function textChunksToPrepared(chunks: TextChunk[]): PreparedChunk[] {
