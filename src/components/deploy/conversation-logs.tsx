@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type ConversationSummary = {
   id: string;
@@ -103,11 +104,12 @@ export function ConversationLogs({
                 <button
                   type="button"
                   onClick={() => setSelectedId(conversation.id)}
-                  className={`w-full rounded-xl border px-3 py-3 text-left text-sm transition-colors ${
+                  className={cn(
+                    "w-full rounded-xl border px-3 py-3 text-left text-sm transition-colors",
                     selectedId === conversation.id
                       ? "border-primary bg-primary/5"
-                      : "border-border hover:bg-muted/40"
-                  }`}
+                      : "border-border hover:bg-muted/40",
+                  )}
                 >
                   <p className="font-medium capitalize">{conversation.mode}</p>
                   <p className="text-muted-foreground">
@@ -143,11 +145,12 @@ export function ConversationLogs({
               {detail.messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`rounded-xl px-3 py-2 text-sm whitespace-pre-wrap ${
+                  className={cn(
+                    "rounded-xl px-3 py-2 text-sm whitespace-pre-wrap",
                     message.role === "user"
                       ? "bg-primary text-primary-foreground"
-                      : "bg-card border border-border"
-                  }`}
+                      : "bg-card border border-border",
+                  )}
                 >
                   <p className="mb-1 text-xs font-medium uppercase opacity-70">
                     {message.role}

@@ -23,6 +23,18 @@ export function isStripeConfigured(): boolean {
   );
 }
 
+async function assertRecurringPrice(priceId: string): Promise<void> {
+  const stripe = getStripe();
+  const price = await stripe.prices.retrieve(priceId);
+
+  if (price.type !== "recurring") {
+    throw new Error(
+      "STRIPE_PRICE_AGENT_SEAT must be a recurring subscription price. " +
+        "Create one in Stripe Dashboard (Products → your product → Add price → Recurring).",
+    );
+  }
+}
+
 export async function createCheckoutSession({
   userId,
   email,
@@ -43,6 +55,8 @@ export async function createCheckoutSession({
   if (!env.STRIPE_PRICE_AGENT_SEAT) {
     throw new Error("STRIPE_PRICE_AGENT_SEAT is not configured");
   }
+
+  await assertRecurringPrice(env.STRIPE_PRICE_AGENT_SEAT);
 
   return stripe.checkout.sessions.create({
     mode: "subscription",

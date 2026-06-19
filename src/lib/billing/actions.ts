@@ -33,20 +33,26 @@ async function startCheckout(formData: FormData) {
   );
 
   const appUrl = getAppUrl();
-  const checkout = await createCheckoutSession({
-    userId,
-    email,
-    stripeCustomerId: subscription?.stripeCustomerId,
-    quantity,
-    successUrl: `${appUrl}/billing?checkout=success`,
-    cancelUrl: `${appUrl}/billing?checkout=canceled`,
-  });
 
-  if (!checkout.url) {
+  try {
+    const checkout = await createCheckoutSession({
+      userId,
+      email,
+      stripeCustomerId: subscription?.stripeCustomerId,
+      quantity,
+      successUrl: `${appUrl}/billing?checkout=success`,
+      cancelUrl: `${appUrl}/billing?checkout=canceled`,
+    });
+
+    if (!checkout.url) {
+      redirect("/billing?error=checkout_failed");
+    }
+
+    redirect(checkout.url);
+  } catch (error) {
+    console.error("[billing] checkout failed", error);
     redirect("/billing?error=checkout_failed");
   }
-
-  redirect(checkout.url);
 }
 
 async function openPortal() {
