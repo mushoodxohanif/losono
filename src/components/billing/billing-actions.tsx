@@ -200,7 +200,7 @@ export function BillingActions({
         <FieldError errors={[form.formState.errors.quantity]} />
       </Field>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 mt-2.5">
         {isPro && hasStripeSubscription ? (
           <Button
             type="button"
