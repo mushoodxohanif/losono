@@ -5,7 +5,18 @@ export default function EmbedLayout({
 }>) {
   return (
     <>
-      <style>{`html, body { background: transparent !important; }`}</style>
+      <style>{`
+        html,
+        body {
+          background: transparent !important;
+          background-color: transparent !important;
+        }
+        body {
+          min-height: 0 !important;
+          height: 100%;
+          overflow: hidden;
+        }
+      `}</style>
       {children}
     </>
   );

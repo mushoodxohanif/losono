@@ -111,6 +111,7 @@ export function EmbedWidget({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
+  const embedResizeInitializedRef = useRef(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
 
   const { messages, sendMessage, status, error, setMessages } =
@@ -210,7 +211,28 @@ export function EmbedWidget({
       return;
     }
 
-    window.parent.postMessage({ type: "losono:embed:resize", open }, "*");
+    if (!embedResizeInitializedRef.current) {
+      embedResizeInitializedRef.current = true;
+      window.parent.postMessage({ type: "losono:embed:resize", open }, "*");
+      return;
+    }
+
+    if (open) {
+      window.parent.postMessage(
+        { type: "losono:embed:resize", open: true },
+        "*",
+      );
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      window.parent.postMessage(
+        { type: "losono:embed:resize", open: false },
+        "*",
+      );
+    }, 300);
+
+    return () => window.clearTimeout(timer);
   }, [compact, open]);
 
   useEffect(() => {
@@ -262,10 +284,17 @@ export function EmbedWidget({
   const panel = (
     <div
       ref={compact ? panelRef : undefined}
+      aria-hidden={compact ? !open : undefined}
+      inert={compact && !open ? true : undefined}
       className={cn(
         "flex min-h-0 flex-col bg-background",
         compact
-          ? "h-[min(640px,80vh)] w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border shadow-2xl"
+          ? cn(
+              "absolute right-0 bottom-[4.25rem] h-[min(640px,80vh)] w-[min(400px,calc(100vw-2rem))] origin-bottom-right overflow-hidden rounded-2xl border border-border shadow-2xl transition-[opacity,transform] duration-300 ease-out",
+              open
+                ? "pointer-events-auto scale-100 opacity-100 delay-75"
+                : "pointer-events-none scale-95 opacity-0 delay-0",
+            )
           : "h-dvh min-h-0 overflow-hidden",
       )}
     >
@@ -399,9 +428,9 @@ export function EmbedWidget({
 
   if (compact) {
     return (
-      <div className="flex h-full w-full flex-col items-end justify-end gap-3">
-        {open && panel}
-        {launcherButton}
+      <div className="relative h-full w-full bg-transparent">
+        {panel}
+        <div className="absolute right-0 bottom-0">{launcherButton}</div>
       </div>
     );
   }

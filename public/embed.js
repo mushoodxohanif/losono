@@ -38,7 +38,11 @@
   iframe.style.bottom = `${INSET}px`;
   iframe.style.border = "0";
   iframe.style.background = "transparent";
+  iframe.style.colorScheme = "normal";
+  iframe.style.overflow = "hidden";
   iframe.style.zIndex = "2147483646";
+  iframe.style.transition =
+    "width 300ms cubic-bezier(0.32, 0.72, 0, 1), height 300ms cubic-bezier(0.32, 0.72, 0, 1)";
 
   if (position === "bottom-left") {
     iframe.style.left = `${INSET}px`;
@@ -82,7 +86,7 @@
     if (open) {
       overlay = document.createElement("div");
       overlay.style.cssText =
-        "position:fixed;inset:0;z-index:2147483645;background:transparent;";
+        "position:fixed;inset:0;z-index:2147483645;background:transparent;opacity:0;transition:opacity 300ms ease;";
       overlay.addEventListener("click", () => {
         iframe.contentWindow.postMessage(
           { type: "losono:embed:close" },
@@ -90,8 +94,20 @@
         );
       });
       document.body.appendChild(overlay);
+      requestAnimationFrame(() => {
+        if (overlay) {
+          overlay.style.opacity = "1";
+        }
+      });
     } else if (overlay) {
-      overlay.remove();
+      overlay.style.opacity = "0";
+      setTimeout(
+        (node) => {
+          node.remove();
+        },
+        300,
+        overlay,
+      );
       overlay = null;
     }
   }
