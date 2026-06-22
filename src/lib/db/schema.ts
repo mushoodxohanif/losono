@@ -112,11 +112,13 @@ export const subscriptions = pgTable(
 
 export type AgentStatus = "draft" | "published";
 
+import type { WidgetTheme } from "@/lib/widget-theme";
+
 export type AgentSettings = {
   voicePersona?: string;
   language?: string;
   temperature?: number;
-  widgetTheme?: Record<string, unknown>;
+  widgetTheme?: WidgetTheme;
   allowedOrigins?: string[];
 };
 

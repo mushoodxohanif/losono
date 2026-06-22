@@ -4,13 +4,14 @@ import { useChat } from "@ai-sdk/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { Loader2, Mic, Send } from "lucide-react";
-import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Button } from "@/components/ui/button";
+import { WidgetLogo } from "@/components/embed/widget-logo";
 import { AgentVoice } from "@/components/voice/agent-voice";
 import { cn } from "@/lib/utils";
+import type { WidgetAppearance } from "@/lib/widget-theme";
+import { widgetThemeStyle } from "@/lib/widget-theme";
 
 const embedChatSchema = z.object({
   message: z.string().trim().min(1, "Message is required"),
@@ -24,7 +25,7 @@ type EmbedWidgetProps = {
   agentId: string;
   agentName: string;
   greeting: string;
-  primaryColor: string;
+  appearance: WidgetAppearance;
   voiceEnabled: boolean;
   defaultOpen?: boolean;
   compact?: boolean;
@@ -93,7 +94,7 @@ export function EmbedWidget({
   agentId,
   agentName,
   greeting,
-  primaryColor,
+  appearance,
   voiceEnabled,
   defaultOpen = false,
   compact = false,
@@ -262,27 +263,30 @@ export function EmbedWidget({
     await sendMessage({ text: values.message });
   }
 
+  const themeStyle = widgetThemeStyle(appearance);
+
   const launcherButton = compact ? (
     <button
       ref={launcherRef}
       type="button"
       onClick={() => setOpen((prev) => !prev)}
       className={cn(
-        "absolute bottom-0 flex size-14 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border",
+        "absolute bottom-0 flex size-14 shrink-0 items-center justify-center rounded-full shadow-md ring-1 ring-[var(--widget-border)]",
         anchorEdge,
       )}
+      style={{
+        backgroundColor: appearance.backgroundColor,
+      }}
       aria-label={
         open ? `Close chat with ${agentName}` : `Chat with ${agentName}`
       }
       aria-expanded={open}
     >
-      <Image
-        src="/logo-mark.svg"
-        alt=""
+      <WidgetLogo
+        src={appearance.logoUrl}
         width={32}
         height={32}
-        className="size-8"
-        aria-hidden
+        className="size-8 object-contain"
       />
     </button>
   ) : null;
@@ -293,10 +297,10 @@ export function EmbedWidget({
       aria-hidden={compact ? !open : undefined}
       inert={compact && !open ? true : undefined}
       className={cn(
-        "flex min-h-0 flex-col bg-background",
+        "flex min-h-0 flex-col",
         compact
           ? cn(
-              "absolute bottom-[4.25rem] h-[min(640px,80vh)] w-[min(400px,calc(100vw-2rem))] origin-bottom-right overflow-hidden rounded-2xl border border-border shadow-xl transition-[opacity,transform] duration-300 ease-out",
+              "absolute bottom-[4.25rem] h-[min(640px,80vh)] w-[min(400px,calc(100vw-2rem))] origin-bottom-right overflow-hidden rounded-2xl border border-[var(--widget-border)] shadow-xl transition-[opacity,transform] duration-300 ease-out",
               anchorEdge,
               position === "bottom-left" && "origin-bottom-left",
               open
@@ -305,21 +309,26 @@ export function EmbedWidget({
             )
           : "h-dvh min-h-0 overflow-hidden",
       )}
+      style={themeStyle}
     >
       <header
-        className="flex shrink-0 items-center justify-between gap-3 px-4 py-3 text-white"
-        style={{ backgroundColor: primaryColor }}
+        className="flex shrink-0 items-center justify-between gap-3 px-4 py-3"
+        style={{
+          backgroundColor: appearance.userBubbleColor,
+          color: appearance.userFontColor,
+        }}
       >
         <div>
           <h1 className="font-medium">{agentName}</h1>
-          <p className="flex items-center gap-1.5 text-xs text-white/80">
-            <Image
-              src="/logo-mark.svg"
-              alt=""
+          <p
+            className="flex items-center gap-1.5 text-xs opacity-80"
+            style={{ color: appearance.userFontColor }}
+          >
+            <WidgetLogo
+              src={appearance.logoUrl}
               width={14}
               height={14}
-              className="size-3.5 rounded-sm"
-              aria-hidden
+              className="size-3.5 rounded-sm object-contain"
             />
             Powered by Losono
           </p>
@@ -327,24 +336,49 @@ export function EmbedWidget({
       </header>
 
       {voiceEnabled && (
-        <div className="flex shrink-0 gap-2 border-b border-border px-4 py-2">
-          <Button
+        <div
+          className="flex shrink-0 gap-2 border-b border-[var(--widget-border)] px-4 py-2"
+          style={{ backgroundColor: appearance.backgroundColor }}
+        >
+          <button
             type="button"
-            size="sm"
-            variant={mode === "chat" ? "default" : "outline"}
+            className="inline-flex h-7 items-center gap-1 rounded-lg px-2.5 text-sm font-medium"
+            style={
+              mode === "chat"
+                ? {
+                    backgroundColor: appearance.userBubbleColor,
+                    color: appearance.userFontColor,
+                  }
+                : {
+                    backgroundColor: "transparent",
+                    color: appearance.assistantFontColor,
+                    border: "1px solid var(--widget-border)",
+                  }
+            }
             onClick={() => setMode("chat")}
           >
             Chat
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            size="sm"
-            variant={mode === "voice" ? "default" : "outline"}
+            className="inline-flex h-7 items-center gap-1 rounded-lg px-2.5 text-sm font-medium"
+            style={
+              mode === "voice"
+                ? {
+                    backgroundColor: appearance.userBubbleColor,
+                    color: appearance.userFontColor,
+                  }
+                : {
+                    backgroundColor: "transparent",
+                    color: appearance.assistantFontColor,
+                    border: "1px solid var(--widget-border)",
+                  }
+            }
             onClick={() => setMode("voice")}
           >
-            <Mic />
+            <Mic className="size-3.5" />
             Voice
-          </Button>
+          </button>
         </div>
       )}
 
@@ -371,14 +405,18 @@ export function EmbedWidget({
                   key={message.id}
                   className={cn(
                     "max-w-[85%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap",
-                    message.role === "user"
-                      ? "ml-auto text-white"
-                      : "bg-muted text-foreground",
+                    message.role === "user" && "ml-auto",
                   )}
                   style={
                     message.role === "user"
-                      ? { backgroundColor: primaryColor }
-                      : undefined
+                      ? {
+                          backgroundColor: appearance.userBubbleColor,
+                          color: appearance.userFontColor,
+                        }
+                      : {
+                          backgroundColor: appearance.assistantBubbleColor,
+                          color: appearance.assistantFontColor,
+                        }
                   }
                 >
                   {text}
@@ -387,7 +425,10 @@ export function EmbedWidget({
             })}
 
             {isBusy && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div
+                className="flex items-center gap-2 text-sm"
+                style={{ color: "var(--widget-muted-text)" }}
+              >
                 <Loader2 className="size-4 animate-spin" />
                 Thinking…
               </div>
@@ -403,13 +444,18 @@ export function EmbedWidget({
 
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="flex shrink-0 items-end gap-2 border-t border-border p-4"
+            className="flex shrink-0 items-end gap-2 border-t border-[var(--widget-border)] p-4"
+            style={{ backgroundColor: appearance.backgroundColor }}
             noValidate
           >
             <textarea
               placeholder="Type a message…"
               rows={2}
-              className="min-h-11 flex-1 resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="min-h-11 flex-1 resize-none rounded-xl border border-[var(--widget-input-border)] px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--widget-user-bubble)]/30"
+              style={{
+                backgroundColor: appearance.backgroundColor,
+                color: appearance.assistantFontColor,
+              }}
               aria-invalid={!!form.formState.errors.message}
               {...form.register("message")}
               onKeyDown={(event) => {
@@ -419,15 +465,21 @@ export function EmbedWidget({
                 }
               }}
             />
-            <Button
+            <button
               type="submit"
               disabled={isBusy || !message.trim()}
-              size="icon-lg"
-              style={{ backgroundColor: primaryColor }}
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg disabled:pointer-events-none disabled:opacity-50"
+              style={{
+                backgroundColor: appearance.sendButtonColor,
+                color: appearance.sendButtonIconColor,
+              }}
             >
-              <Send />
+              <Send
+                className="size-4"
+                style={{ color: appearance.sendButtonIconColor }}
+              />
               <span className="sr-only">Send message</span>
-            </Button>
+            </button>
           </form>
         </div>
       )}

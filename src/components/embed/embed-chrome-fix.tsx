@@ -8,6 +8,8 @@ export function EmbedChromeFix() {
     const body = document.body;
 
     html.dataset.embed = "true";
+    html.classList.remove("dark");
+    html.classList.add("light");
     html.style.setProperty("background", "transparent", "important");
     html.style.setProperty("background-color", "transparent", "important");
     html.style.setProperty("color-scheme", "normal", "important");
@@ -18,6 +20,7 @@ export function EmbedChromeFix() {
 
     return () => {
       delete html.dataset.embed;
+      html.classList.remove("light");
       html.style.removeProperty("background");
       html.style.removeProperty("background-color");
       html.style.removeProperty("color-scheme");

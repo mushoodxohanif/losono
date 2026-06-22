@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { getAgentForUser, updateAgentSettings } from "@/lib/db/queries/agents";
 import type { AgentSettings } from "@/lib/db/schema";
@@ -45,6 +46,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   if (!updated) {
     return Response.json({ error: "update_failed" }, { status: 500 });
   }
+
+  revalidatePath(`/embed/${updated.slug}`);
 
   return Response.json({ settings: updated.settings });
 }

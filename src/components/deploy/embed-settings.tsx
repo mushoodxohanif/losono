@@ -1,10 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Copy } from "lucide-react";
-import { Controller, useForm } from "react-hook-form";
+import { Copy, ImageIcon, X } from "lucide-react";
+import { useRef } from "react";
+import { Controller, type UseFormRegister, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { WidgetLogo } from "@/components/embed/widget-logo";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -21,13 +23,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  DEFAULT_WIDGET_THEME,
+  WIDGET_LOGO_MAX_BYTES,
+  type WidgetAppearance,
+} from "@/lib/widget-theme";
+
+const hexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color");
 
 const embedSettingsSchema = z.object({
   greeting: z.string(),
   position: z.enum(["bottom-right", "bottom-left"]),
-  primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color"),
   allowedOrigins: z.string(),
   modes: z.enum(["chat", "chat+voice"]),
+  backgroundColor: hexColor,
+  userFontColor: hexColor,
+  assistantFontColor: hexColor,
+  userBubbleColor: hexColor,
+  assistantBubbleColor: hexColor,
+  sendButtonColor: hexColor,
+  sendButtonIconColor: hexColor,
+  logoUrl: z.string(),
 });
 
 type EmbedSettingsValues = z.infer<typeof embedSettingsSchema>;
@@ -39,10 +55,47 @@ type EmbedSettingsProps = {
   published: boolean;
   initialGreeting: string;
   initialPosition: "bottom-right" | "bottom-left";
-  initialPrimaryColor: string;
   initialAllowedOrigins: string;
   initialModes: "chat" | "chat+voice";
+  initialAppearance: WidgetAppearance;
 };
+
+function ColorField({
+  id,
+  label,
+  error,
+  register,
+  name,
+}: {
+  id: string;
+  label: string;
+  error?: { message?: string };
+  register: UseFormRegister<EmbedSettingsValues>;
+  name: keyof Pick<
+    EmbedSettingsValues,
+    | "backgroundColor"
+    | "userFontColor"
+    | "assistantFontColor"
+    | "userBubbleColor"
+    | "assistantBubbleColor"
+    | "sendButtonColor"
+    | "sendButtonIconColor"
+  >;
+}) {
+  return (
+    <Field data-invalid={!!error}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Input
+        id={id}
+        type="color"
+        className="h-9 px-1"
+        aria-invalid={!!error}
+        {...register(name)}
+      />
+      <FieldError errors={[error]} />
+    </Field>
+  );
+}
 
 export function EmbedSettings({
   agentId,
@@ -51,10 +104,11 @@ export function EmbedSettings({
   published,
   initialGreeting,
   initialPosition,
-  initialPrimaryColor,
   initialAllowedOrigins,
   initialModes,
+  initialAppearance,
 }: EmbedSettingsProps) {
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const embedUrl = `${appUrl}/embed/${slug}`;
   const scriptSnippet = `<script src="${appUrl}/embed.js" data-agent="${slug}"></script>`;
 
@@ -63,11 +117,20 @@ export function EmbedSettings({
     defaultValues: {
       greeting: initialGreeting,
       position: initialPosition,
-      primaryColor: initialPrimaryColor,
       allowedOrigins: initialAllowedOrigins,
       modes: initialModes,
+      backgroundColor: initialAppearance.backgroundColor,
+      userFontColor: initialAppearance.userFontColor,
+      assistantFontColor: initialAppearance.assistantFontColor,
+      userBubbleColor: initialAppearance.userBubbleColor,
+      assistantBubbleColor: initialAppearance.assistantBubbleColor,
+      sendButtonColor: initialAppearance.sendButtonColor,
+      sendButtonIconColor: initialAppearance.sendButtonIconColor,
+      logoUrl: initialAppearance.logoUrl,
     },
   });
+
+  const logoUrl = form.watch("logoUrl");
 
   async function onSubmit(values: EmbedSettingsValues) {
     const origins = values.allowedOrigins
@@ -85,8 +148,15 @@ export function EmbedSettings({
             widgetTheme: {
               greeting: values.greeting,
               position: values.position,
-              primaryColor: values.primaryColor,
               modes: values.modes,
+              backgroundColor: values.backgroundColor,
+              userFontColor: values.userFontColor,
+              assistantFontColor: values.assistantFontColor,
+              userBubbleColor: values.userBubbleColor,
+              assistantBubbleColor: values.assistantBubbleColor,
+              sendButtonColor: values.sendButtonColor,
+              sendButtonIconColor: values.sendButtonIconColor,
+              logoUrl: values.logoUrl,
             },
           },
         }),
@@ -109,6 +179,46 @@ export function EmbedSettings({
   async function copyText(text: string, label: string) {
     await navigator.clipboard.writeText(text);
     toast.success(`${label} copied to clipboard`);
+  }
+
+  async function handleLogoUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Logo must be an image file");
+      return;
+    }
+
+    if (file.size > WIDGET_LOGO_MAX_BYTES) {
+      toast.error("Logo must be under 256 KB");
+      return;
+    }
+
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("Failed to read logo"));
+        reader.readAsDataURL(file);
+      });
+
+      form.setValue("logoUrl", dataUrl, { shouldDirty: true });
+    } catch (uploadError) {
+      toast.error(
+        uploadError instanceof Error ? uploadError.message : "Upload failed",
+      );
+    }
+  }
+
+  function resetLogo() {
+    form.setValue("logoUrl", DEFAULT_WIDGET_THEME.logoUrl, {
+      shouldDirty: true,
+    });
   }
 
   return (
@@ -174,71 +284,156 @@ export function EmbedSettings({
 
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-4"
+        className="space-y-6"
         noValidate
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field data-invalid={!!form.formState.errors.greeting}>
-            <FieldLabel htmlFor="greeting">Greeting</FieldLabel>
-            <Input
-              id="greeting"
-              aria-invalid={!!form.formState.errors.greeting}
-              {...form.register("greeting")}
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium">Appearance</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <ColorField
+              id="background-color"
+              label="Background color"
+              error={form.formState.errors.backgroundColor}
+              register={form.register}
+              name="backgroundColor"
             />
-            <FieldError errors={[form.formState.errors.greeting]} />
-          </Field>
-
-          <Field data-invalid={!!form.formState.errors.primaryColor}>
-            <FieldLabel htmlFor="primary-color">Primary color</FieldLabel>
-            <Input
-              id="primary-color"
-              type="color"
-              className="h-9 px-1"
-              aria-invalid={!!form.formState.errors.primaryColor}
-              {...form.register("primaryColor")}
+            <ColorField
+              id="user-font-color"
+              label="User font color"
+              error={form.formState.errors.userFontColor}
+              register={form.register}
+              name="userFontColor"
             />
-            <FieldError errors={[form.formState.errors.primaryColor]} />
-          </Field>
+            <ColorField
+              id="assistant-font-color"
+              label="AI font color"
+              error={form.formState.errors.assistantFontColor}
+              register={form.register}
+              name="assistantFontColor"
+            />
+            <ColorField
+              id="user-bubble-color"
+              label="User message color"
+              error={form.formState.errors.userBubbleColor}
+              register={form.register}
+              name="userBubbleColor"
+            />
+            <ColorField
+              id="assistant-bubble-color"
+              label="AI message color"
+              error={form.formState.errors.assistantBubbleColor}
+              register={form.register}
+              name="assistantBubbleColor"
+            />
+            <ColorField
+              id="send-button-color"
+              label="Send button color"
+              error={form.formState.errors.sendButtonColor}
+              register={form.register}
+              name="sendButtonColor"
+            />
+            <ColorField
+              id="send-button-icon-color"
+              label="Send button icon color"
+              error={form.formState.errors.sendButtonIconColor}
+              register={form.register}
+              name="sendButtonIconColor"
+            />
+          </div>
 
-          <Field data-invalid={!!form.formState.errors.position}>
-            <FieldLabel>Launcher position</FieldLabel>
-            <Controller
-              name="position"
-              control={form.control}
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bottom-right">Bottom right</SelectItem>
-                    <SelectItem value="bottom-left">Bottom left</SelectItem>
-                  </SelectContent>
-                </Select>
+          <Field>
+            <FieldLabel>Widget logo</FieldLabel>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex size-14 items-center justify-center rounded-full border border-border bg-muted/40">
+                <WidgetLogo
+                  src={logoUrl || DEFAULT_WIDGET_THEME.logoUrl}
+                  width={32}
+                  height={32}
+                  className="size-8 object-contain"
+                />
+              </div>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleLogoUpload}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => logoInputRef.current?.click()}
+              >
+                <ImageIcon />
+                Upload logo
+              </Button>
+              {logoUrl !== DEFAULT_WIDGET_THEME.logoUrl && (
+                <Button type="button" variant="ghost" onClick={resetLogo}>
+                  <X />
+                  Reset to default
+                </Button>
               )}
-            />
-            <FieldError errors={[form.formState.errors.position]} />
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              PNG, SVG, or JPG up to 256 KB. Shown on the launcher and widget
+              header.
+            </p>
           </Field>
+        </div>
 
-          <Field data-invalid={!!form.formState.errors.modes}>
-            <FieldLabel>Modes</FieldLabel>
-            <Controller
-              name="modes"
-              control={form.control}
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="chat">Chat only</SelectItem>
-                    <SelectItem value="chat+voice">Chat + voice</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            <FieldError errors={[form.formState.errors.modes]} />
-          </Field>
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium">Behavior</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field data-invalid={!!form.formState.errors.greeting}>
+              <FieldLabel htmlFor="greeting">Greeting</FieldLabel>
+              <Input
+                id="greeting"
+                aria-invalid={!!form.formState.errors.greeting}
+                {...form.register("greeting")}
+              />
+              <FieldError errors={[form.formState.errors.greeting]} />
+            </Field>
+
+            <Field data-invalid={!!form.formState.errors.position}>
+              <FieldLabel>Launcher position</FieldLabel>
+              <Controller
+                name="position"
+                control={form.control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bottom-right">Bottom right</SelectItem>
+                      <SelectItem value="bottom-left">Bottom left</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              <FieldError errors={[form.formState.errors.position]} />
+            </Field>
+
+            <Field data-invalid={!!form.formState.errors.modes}>
+              <FieldLabel>Modes</FieldLabel>
+              <Controller
+                name="modes"
+                control={form.control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="chat">Chat only</SelectItem>
+                      <SelectItem value="chat+voice">Chat + voice</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              <FieldError errors={[form.formState.errors.modes]} />
+            </Field>
+          </div>
         </div>
 
         <Field data-invalid={!!form.formState.errors.allowedOrigins}>

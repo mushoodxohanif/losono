@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { EmbedWidget } from "@/components/embed/embed-widget";
 import { getSubscriptionByUserId } from "@/lib/billing/subscriptions";
 import { canUseVoiceInPlayground } from "@/lib/billing/voice-access";
 import { getPublishedAgentBySlug } from "@/lib/db/queries/agents";
+import { resolveWidgetTheme } from "@/lib/widget-theme";
 
 type EmbedPageProps = {
   params: Promise<{ slug: string }>;
@@ -21,6 +23,7 @@ function EmbedFallback() {
 }
 
 async function EmbedContent({ params, searchParams }: EmbedPageProps) {
+  await connection();
   const { slug } = await params;
   const { position: positionParam } = await searchParams;
   const position =
@@ -33,24 +36,26 @@ async function EmbedContent({ params, searchParams }: EmbedPageProps) {
 
   const subscription = await getSubscriptionByUserId(agent.userId);
   const voiceAccess = canUseVoiceInPlayground(subscription, agent);
-  const widgetTheme = agent.settings.widgetTheme ?? {};
-  const modes = widgetTheme.modes === "chat+voice" ? "chat+voice" : "chat";
+  const theme = resolveWidgetTheme(agent.settings.widgetTheme, {
+    agentName: agent.name,
+  });
 
   return (
     <EmbedWidget
       agentId={agent.id}
       agentName={agent.name}
-      greeting={
-        typeof widgetTheme.greeting === "string"
-          ? widgetTheme.greeting
-          : `Hi! I'm ${agent.name}. How can I help?`
-      }
-      primaryColor={
-        typeof widgetTheme.primaryColor === "string"
-          ? widgetTheme.primaryColor
-          : "#2563eb"
-      }
-      voiceEnabled={modes === "chat+voice" && voiceAccess.allowed}
+      greeting={theme.greeting}
+      appearance={{
+        backgroundColor: theme.backgroundColor,
+        userFontColor: theme.userFontColor,
+        assistantFontColor: theme.assistantFontColor,
+        userBubbleColor: theme.userBubbleColor,
+        assistantBubbleColor: theme.assistantBubbleColor,
+        sendButtonColor: theme.sendButtonColor,
+        sendButtonIconColor: theme.sendButtonIconColor,
+        logoUrl: theme.logoUrl,
+      }}
+      voiceEnabled={theme.modes === "chat+voice" && voiceAccess.allowed}
       compact
       defaultOpen={false}
       position={position}

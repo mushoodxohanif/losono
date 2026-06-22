@@ -13,6 +13,7 @@ import {
   getAgentUsageSummary,
   listConversationLogs,
 } from "@/lib/db/queries/usage";
+import { resolveWidgetTheme } from "@/lib/widget-theme";
 
 type DeployPageProps = {
   params: Promise<{ id: string }>;
@@ -46,7 +47,9 @@ async function DeployContent({ params }: DeployPageProps) {
     listApiKeysForAgent(agent.id),
   ]);
 
-  const widgetTheme = agent.settings.widgetTheme ?? {};
+  const theme = resolveWidgetTheme(agent.settings.widgetTheme, {
+    agentName: agent.name,
+  });
   const published = agent.status === "published";
   const canPublish = agent.userPrompt.trim().length > 0;
   const appUrl = getAppUrl();
@@ -81,25 +84,20 @@ async function DeployContent({ params }: DeployPageProps) {
         slug={agent.slug}
         appUrl={appUrl}
         published={published}
-        initialGreeting={
-          typeof widgetTheme.greeting === "string"
-            ? widgetTheme.greeting
-            : `Hi! I'm ${agent.name}. How can I help?`
-        }
-        initialPosition={
-          widgetTheme.position === "bottom-left"
-            ? "bottom-left"
-            : "bottom-right"
-        }
-        initialPrimaryColor={
-          typeof widgetTheme.primaryColor === "string"
-            ? widgetTheme.primaryColor
-            : "#2563eb"
-        }
+        initialGreeting={theme.greeting}
+        initialPosition={theme.position}
         initialAllowedOrigins={(agent.settings.allowedOrigins ?? []).join("\n")}
-        initialModes={
-          widgetTheme.modes === "chat+voice" ? "chat+voice" : "chat"
-        }
+        initialModes={theme.modes}
+        initialAppearance={{
+          backgroundColor: theme.backgroundColor,
+          userFontColor: theme.userFontColor,
+          assistantFontColor: theme.assistantFontColor,
+          userBubbleColor: theme.userBubbleColor,
+          assistantBubbleColor: theme.assistantBubbleColor,
+          sendButtonColor: theme.sendButtonColor,
+          sendButtonIconColor: theme.sendButtonIconColor,
+          logoUrl: theme.logoUrl,
+        }}
       />
 
       <ApiKeysManager
