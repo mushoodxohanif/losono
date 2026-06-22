@@ -2,7 +2,11 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-export function CtaSection() {
+type CtaSectionProps = {
+  isAuthenticated?: boolean;
+};
+
+export function CtaSection({ isAuthenticated = false }: CtaSectionProps) {
   return (
     <section className="relative overflow-hidden py-24 sm:py-32">
       <div className="landing-mesh absolute inset-0 opacity-60" />
@@ -21,8 +25,8 @@ export function CtaSection() {
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg" className="h-11 px-6">
-              <Link href="/sign-in">
-                Get started free
+              <Link href={isAuthenticated ? "/dashboard" : "/sign-in"}>
+                {isAuthenticated ? "Dashboard" : "Get started free"}
                 <ArrowRight className="size-4" />
               </Link>
             </Button>

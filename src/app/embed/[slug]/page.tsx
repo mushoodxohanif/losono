@@ -45,7 +45,8 @@ async function EmbedContent({ params }: EmbedPageProps) {
           : "#2563eb"
       }
       voiceEnabled={modes === "chat+voice" && voiceAccess.allowed}
-      defaultOpen
+      compact
+      defaultOpen={false}
     />
   );
 }

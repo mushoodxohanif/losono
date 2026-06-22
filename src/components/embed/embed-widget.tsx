@@ -3,7 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { Loader2, Mic, Send, X } from "lucide-react";
+import { Loader2, Mic, Send } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -94,7 +94,7 @@ export function EmbedWidget({
   greeting,
   primaryColor,
   voiceEnabled,
-  defaultOpen = true,
+  defaultOpen = false,
   compact = false,
 }: EmbedWidgetProps) {
   const [open, setOpen] = useState(defaultOpen);
@@ -109,6 +109,8 @@ export function EmbedWidget({
   const visitorIdRef = useRef<string>("");
   const hydratedRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const launcherRef = useRef<HTMLButtonElement>(null);
   const [conversationId, setConversationId] = useState<string | undefined>();
 
   const { messages, sendMessage, status, error, setMessages } =
@@ -183,6 +185,49 @@ export function EmbedWidget({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isBusy]);
 
+  useEffect(() => {
+    if (!compact || !open) {
+      return;
+    }
+
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as Node;
+      if (
+        panelRef.current?.contains(target) ||
+        launcherRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setOpen(false);
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [compact, open]);
+
+  useEffect(() => {
+    if (!compact || window.parent === window) {
+      return;
+    }
+
+    window.parent.postMessage({ type: "losono:embed:resize", open }, "*");
+  }, [compact, open]);
+
+  useEffect(() => {
+    if (!compact) {
+      return;
+    }
+
+    function handleMessage(event: MessageEvent) {
+      if (event.data?.type === "losono:embed:close") {
+        setOpen(false);
+      }
+    }
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [compact]);
+
   async function onSubmit(values: EmbedChatValues) {
     if (isBusy) {
       return;
@@ -192,32 +237,35 @@ export function EmbedWidget({
     await sendMessage({ text: values.message });
   }
 
-  if (compact && !open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-50 flex size-14 items-center justify-center rounded-full bg-background shadow-lg ring-1 ring-border"
-        aria-label={`Chat with ${agentName}`}
-      >
-        <Image
-          src="/logo-mark.svg"
-          alt=""
-          width={32}
-          height={32}
-          className="size-8"
-          aria-hidden
-        />
-      </button>
-    );
-  }
+  const launcherButton = compact ? (
+    <button
+      ref={launcherRef}
+      type="button"
+      onClick={() => setOpen((prev) => !prev)}
+      className="flex size-14 shrink-0 items-center justify-center rounded-full bg-background shadow-lg ring-1 ring-border"
+      aria-label={
+        open ? `Close chat with ${agentName}` : `Chat with ${agentName}`
+      }
+      aria-expanded={open}
+    >
+      <Image
+        src="/logo-mark.svg"
+        alt=""
+        width={32}
+        height={32}
+        className="size-8"
+        aria-hidden
+      />
+    </button>
+  ) : null;
 
-  return (
+  const panel = (
     <div
+      ref={compact ? panelRef : undefined}
       className={cn(
         "flex min-h-0 flex-col bg-background",
         compact
-          ? "fixed bottom-5 right-5 z-50 h-[min(640px,80vh)] w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border shadow-2xl"
+          ? "h-[min(640px,80vh)] w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border shadow-2xl"
           : "h-dvh min-h-0 overflow-hidden",
       )}
     >
@@ -239,16 +287,6 @@ export function EmbedWidget({
             Powered by Losono
           </p>
         </div>
-        {compact && (
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="rounded-full p-1 hover:bg-white/10"
-            aria-label="Close chat"
-          >
-            <X className="size-5" />
-          </button>
-        )}
       </header>
 
       {voiceEnabled && (
@@ -358,4 +396,15 @@ export function EmbedWidget({
       )}
     </div>
   );
+
+  if (compact) {
+    return (
+      <div className="flex h-full w-full flex-col items-end justify-end gap-3">
+        {open && panel}
+        {launcherButton}
+      </div>
+    );
+  }
+
+  return panel;
 }

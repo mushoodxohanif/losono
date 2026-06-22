@@ -17,7 +17,13 @@ const navLinks = [
 
 const SCROLL_THRESHOLD = 32;
 
-export function FloatingNavbar() {
+type FloatingNavbarProps = {
+  isAuthenticated?: boolean;
+};
+
+export function FloatingNavbar({
+  isAuthenticated = false,
+}: FloatingNavbarProps) {
   const pathname = usePathname();
   const isSignIn = pathname === "/sign-in";
   const [scrolled, setScrolled] = useState(false);
@@ -77,26 +83,36 @@ export function FloatingNavbar() {
             <Link href="/docs">Docs</Link>
           </Button>
           {!isSignIn ? (
-            <>
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "hidden rounded-full sm:inline-flex",
-                  scrolled && "px-3",
-                )}
-              >
-                <Link href="/sign-in">Sign in</Link>
-              </Button>
+            isAuthenticated ? (
               <Button
                 asChild
                 size="sm"
                 className={cn("rounded-full", scrolled && "px-3.5")}
               >
-                <Link href="/sign-in">Get started</Link>
+                <Link href="/dashboard">Dashboard</Link>
               </Button>
-            </>
+            ) : (
+              <>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "hidden rounded-full sm:inline-flex",
+                    scrolled && "px-3",
+                  )}
+                >
+                  <Link href="/sign-in">Sign in</Link>
+                </Button>
+                <Button
+                  asChild
+                  size="sm"
+                  className={cn("rounded-full", scrolled && "px-3.5")}
+                >
+                  <Link href="/sign-in">Get started</Link>
+                </Button>
+              </>
+            )
           ) : null}
         </div>
       </div>

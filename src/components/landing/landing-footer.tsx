@@ -7,7 +7,11 @@ function CopyrightFallback() {
   return "2026";
 }
 
-export function LandingFooter() {
+type LandingFooterProps = {
+  isAuthenticated?: boolean;
+};
+
+export function LandingFooter({ isAuthenticated = false }: LandingFooterProps) {
   return (
     <footer className="border-t border-border/60 bg-muted/20">
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-12 sm:flex-row sm:items-center sm:justify-between">
@@ -38,10 +42,10 @@ export function LandingFooter() {
             Docs
           </Link>
           <Link
-            href="/sign-in"
+            href={isAuthenticated ? "/dashboard" : "/sign-in"}
             className="transition-colors hover:text-foreground"
           >
-            Sign in
+            {isAuthenticated ? "Dashboard" : "Sign in"}
           </Link>
         </nav>
       </div>
