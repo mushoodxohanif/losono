@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Copy, KeyRound, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -107,8 +108,12 @@ export function ApiKeysManager({
       <div className="space-y-1">
         <h2 className="text-lg font-medium">API keys</h2>
         <p className="text-sm text-muted-foreground">
-          Use Bearer tokens for server-side integrations. Keys are shown once
-          when created.
+          Use Bearer tokens for server-side or custom client integrations. Keys
+          are not required for the embed widget — see{" "}
+          <Link href="/docs" className="text-primary hover:underline">
+            API docs
+          </Link>{" "}
+          for when to use keys vs the embed snippet.
         </p>
       </div>
 

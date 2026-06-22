@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { AgentVoice } from "@/components/voice/agent-voice";
 import { cn } from "@/lib/utils";
 
 const embedChatSchema = z.object({
@@ -59,7 +60,7 @@ export function EmbedWidget({
 }: EmbedWidgetProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [mode, setMode] = useState<"chat" | "voice">("chat");
-  const [voiceStatus, setVoiceStatus] = useState<string>("idle");
+  const [visitorId, setVisitorId] = useState("");
   const form = useForm<EmbedChatValues>({
     resolver: zodResolver(embedChatSchema),
     defaultValues: { message: "" },
@@ -69,7 +70,9 @@ export function EmbedWidget({
   const visitorIdRef = useRef<string>("");
 
   useEffect(() => {
-    visitorIdRef.current = getVisitorId();
+    const id = getVisitorId();
+    visitorIdRef.current = id;
+    setVisitorId(id);
   }, []);
 
   const transport = useMemo(
@@ -121,31 +124,6 @@ export function EmbedWidget({
     await sendMessage({ text: values.message });
   }
 
-  async function startVoice() {
-    setVoiceStatus("checking");
-    const params = new URLSearchParams({
-      mode: "deploy",
-      visitorId: visitorIdRef.current,
-    });
-
-    const response = await fetch(
-      `/api/agents/${agentId}/voice?${params.toString()}`,
-    );
-    const data = (await response.json()) as {
-      voiceAvailable?: boolean;
-      reason?: string;
-    };
-
-    if (!response.ok || !data.voiceAvailable) {
-      setVoiceStatus(data.reason ?? "Voice unavailable");
-      return;
-    }
-
-    setVoiceStatus(
-      "Voice sessions open from the hosted widget. Use the API with an API key for full voice control.",
-    );
-  }
-
   if (compact && !open) {
     return (
       <button
@@ -169,7 +147,7 @@ export function EmbedWidget({
   return (
     <div
       className={cn(
-        "flex flex-col bg-background",
+        "flex min-h-0 flex-col bg-background",
         compact
           ? "fixed bottom-5 right-5 z-50 h-[min(640px,80vh)] w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border shadow-2xl"
           : "min-h-screen",
@@ -219,10 +197,7 @@ export function EmbedWidget({
             type="button"
             size="sm"
             variant={mode === "voice" ? "default" : "outline"}
-            onClick={() => {
-              setMode("voice");
-              void startVoice();
-            }}
+            onClick={() => setMode("voice")}
           >
             <Mic />
             Voice
@@ -231,11 +206,14 @@ export function EmbedWidget({
       )}
 
       {mode === "voice" ? (
-        <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
-          {voiceStatus === "idle" || voiceStatus === "checking"
-            ? "Checking voice availability…"
-            : voiceStatus}
-        </div>
+        <AgentVoice
+          agentId={agentId}
+          agentName={agentName}
+          voiceAvailable={voiceEnabled}
+          mode="deploy"
+          visitorId={visitorId}
+          embedded
+        />
       ) : (
         <>
           <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">

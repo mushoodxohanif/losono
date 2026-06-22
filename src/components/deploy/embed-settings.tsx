@@ -117,6 +117,9 @@ export function EmbedSettings({
         <h2 className="text-lg font-medium">Embed widget</h2>
         <p className="text-sm text-muted-foreground">
           Add the script snippet to your site or share the hosted widget URL.
+          Chat works without an API key. For voice, set modes to{" "}
+          <strong className="font-medium text-foreground">Chat + voice</strong>{" "}
+          below (Pro plan required) — no API key needed for the embed.
         </p>
       </div>
 

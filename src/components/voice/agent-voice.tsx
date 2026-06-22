@@ -21,6 +21,8 @@ type AgentVoiceProps = {
   mode?: "playground" | "deploy";
   apiKey?: string;
   visitorId?: string;
+  /** Compact layout for the hosted embed widget (no outer card chrome). */
+  embedded?: boolean;
 };
 
 type VoiceStatus =
@@ -101,6 +103,7 @@ export function AgentVoice({
   mode = "playground",
   apiKey,
   visitorId,
+  embedded = false,
 }: AgentVoiceProps) {
   const [status, setStatus] = useState<VoiceStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -458,13 +461,20 @@ export function AgentVoice({
   const isBusy = status === "connecting";
 
   return (
-    <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card">
-      <header className="shrink-0 border-b border-border px-4 py-3">
-        <h2 className="font-medium">Voice with {agentName}</h2>
-        <p className="text-sm text-muted-foreground">
-          Real-time audio via the Gemini Live API.
-        </p>
-      </header>
+    <section
+      className={cn(
+        "flex h-full min-h-0 flex-col overflow-hidden bg-card",
+        embedded ? "flex-1" : "rounded-2xl border border-border",
+      )}
+    >
+      {!embedded && (
+        <header className="shrink-0 border-b border-border px-4 py-3">
+          <h2 className="font-medium">Voice with {agentName}</h2>
+          <p className="text-sm text-muted-foreground">
+            Real-time audio via the Gemini Live API.
+          </p>
+        </header>
+      )}
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
         {!voiceAvailable ? (
