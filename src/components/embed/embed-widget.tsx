@@ -42,6 +42,45 @@ function getVisitorId() {
   return id;
 }
 
+type StoredChatSession = {
+  conversationId?: string;
+  messages: LosonoUIMessage[];
+};
+
+function getChatStorageKey(agentId: string, visitorId: string) {
+  return `losono_chat_${agentId}_${visitorId}`;
+}
+
+function loadChatSession(
+  agentId: string,
+  visitorId: string,
+): StoredChatSession | null {
+  try {
+    const raw = localStorage.getItem(getChatStorageKey(agentId, visitorId));
+    if (!raw) {
+      return null;
+    }
+    return JSON.parse(raw) as StoredChatSession;
+  } catch {
+    return null;
+  }
+}
+
+function saveChatSession(
+  agentId: string,
+  visitorId: string,
+  session: StoredChatSession,
+) {
+  try {
+    localStorage.setItem(
+      getChatStorageKey(agentId, visitorId),
+      JSON.stringify(session),
+    );
+  } catch {
+    // Ignore quota or serialization errors.
+  }
+}
+
 function getMessageText(message: LosonoUIMessage): string {
   return message.parts
     .filter((part) => part.type === "text")
@@ -68,43 +107,52 @@ export function EmbedWidget({
   const message = form.watch("message");
   const conversationIdRef = useRef<string | undefined>(undefined);
   const visitorIdRef = useRef<string>("");
-
-  useEffect(() => {
-    const id = getVisitorId();
-    visitorIdRef.current = id;
-    setVisitorId(id);
-  }, []);
-
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport<LosonoUIMessage>({
-        api: `/api/agents/${agentId}/chat`,
-        body: () => ({
-          conversationId: conversationIdRef.current,
-          mode: "chat",
-          visitorId: visitorIdRef.current,
-        }),
-        fetch: async (input, init) => {
-          const response = await fetch(input, init);
-          const conversationId = response.headers.get("X-Conversation-Id");
-          if (conversationId) {
-            conversationIdRef.current = conversationId;
-          }
-          return response;
-        },
-      }),
-    [agentId],
-  );
+  const hydratedRef = useRef(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [conversationId, setConversationId] = useState<string | undefined>();
 
   const { messages, sendMessage, status, error, setMessages } =
     useChat<LosonoUIMessage>({
-      transport,
+      transport: useMemo(
+        () =>
+          new DefaultChatTransport<LosonoUIMessage>({
+            api: `/api/agents/${agentId}/chat`,
+            body: () => ({
+              conversationId: conversationIdRef.current,
+              mode: "chat",
+              visitorId: visitorIdRef.current,
+            }),
+            fetch: async (input, init) => {
+              const response = await fetch(input, init);
+              const nextConversationId =
+                response.headers.get("X-Conversation-Id");
+              if (nextConversationId) {
+                conversationIdRef.current = nextConversationId;
+                setConversationId(nextConversationId);
+              }
+              return response;
+            },
+          }),
+        [agentId],
+      ),
     });
 
   const isBusy = status === "submitted" || status === "streaming";
 
   useEffect(() => {
-    if (messages.length === 0 && greeting) {
+    const id = getVisitorId();
+    visitorIdRef.current = id;
+    setVisitorId(id);
+
+    const stored = loadChatSession(agentId, id);
+    if (stored?.conversationId) {
+      conversationIdRef.current = stored.conversationId;
+      setConversationId(stored.conversationId);
+    }
+
+    if (stored?.messages && stored.messages.length > 0) {
+      setMessages(stored.messages);
+    } else if (greeting) {
       setMessages([
         {
           id: "greeting",
@@ -113,7 +161,27 @@ export function EmbedWidget({
         },
       ]);
     }
-  }, [greeting, messages.length, setMessages]);
+
+    hydratedRef.current = true;
+  }, [agentId, greeting, setMessages]);
+
+  useEffect(() => {
+    if (!hydratedRef.current || !visitorId) {
+      return;
+    }
+
+    saveChatSession(agentId, visitorId, {
+      conversationId,
+      messages,
+    });
+  }, [agentId, visitorId, messages, conversationId]);
+
+  useEffect(() => {
+    if (messages.length === 0 && !isBusy) {
+      return;
+    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isBusy]);
 
   async function onSubmit(values: EmbedChatValues) {
     if (isBusy) {
@@ -150,11 +218,11 @@ export function EmbedWidget({
         "flex min-h-0 flex-col bg-background",
         compact
           ? "fixed bottom-5 right-5 z-50 h-[min(640px,80vh)] w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border shadow-2xl"
-          : "min-h-screen",
+          : "h-dvh min-h-0 overflow-hidden",
       )}
     >
       <header
-        className="flex items-center justify-between gap-3 px-4 py-3 text-white"
+        className="flex shrink-0 items-center justify-between gap-3 px-4 py-3 text-white"
         style={{ backgroundColor: primaryColor }}
       >
         <div>
@@ -184,7 +252,7 @@ export function EmbedWidget({
       </header>
 
       {voiceEnabled && (
-        <div className="flex gap-2 border-b border-border px-4 py-2">
+        <div className="flex shrink-0 gap-2 border-b border-border px-4 py-2">
           <Button
             type="button"
             size="sm"
@@ -215,8 +283,8 @@ export function EmbedWidget({
           embedded
         />
       ) : (
-        <>
-          <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
             {messages.map((message) => {
               const text = getMessageText(message);
               if (!text) {
@@ -249,17 +317,18 @@ export function EmbedWidget({
                 Thinking…
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
           {error && (
-            <div className="mx-4 mb-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div className="mx-4 mb-2 shrink-0 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error.message}
             </div>
           )}
 
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="flex items-end gap-2 border-t border-border p-4"
+            className="flex shrink-0 items-end gap-2 border-t border-border p-4"
             noValidate
           >
             <textarea
@@ -285,7 +354,7 @@ export function EmbedWidget({
               <span className="sr-only">Send message</span>
             </Button>
           </form>
-        </>
+        </div>
       )}
     </div>
   );
