@@ -12,6 +12,8 @@ import {
   parseWebSocketJsonMessage,
 } from "@/lib/gemini/voice-messages";
 import { cn } from "@/lib/utils";
+import type { WidgetAppearance } from "@/lib/widget-theme";
+import { widgetThemeStyle } from "@/lib/widget-theme";
 
 type AgentVoiceProps = {
   agentId: string;
@@ -23,6 +25,8 @@ type AgentVoiceProps = {
   visitorId?: string;
   /** Compact layout for the hosted embed widget (no outer card chrome). */
   embedded?: boolean;
+  /** Widget theme colors when rendered inside the embed. */
+  appearance?: WidgetAppearance;
 };
 
 type VoiceStatus =
@@ -104,6 +108,7 @@ export function AgentVoice({
   apiKey,
   visitorId,
   embedded = false,
+  appearance,
 }: AgentVoiceProps) {
   const [status, setStatus] = useState<VoiceStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -459,13 +464,31 @@ export function AgentVoice({
   }
 
   const isBusy = status === "connecting";
+  const themed = embedded && appearance;
+  const themeStyle = themed ? widgetThemeStyle(appearance) : undefined;
+
+  const userBubbleStyle = themed
+    ? {
+        backgroundColor: appearance.userBubbleColor,
+        color: appearance.userFontColor,
+      }
+    : undefined;
+
+  const assistantBubbleStyle = themed
+    ? {
+        backgroundColor: appearance.assistantBubbleColor,
+        color: appearance.assistantFontColor,
+      }
+    : undefined;
 
   return (
     <section
       className={cn(
-        "flex h-full min-h-0 flex-col overflow-hidden bg-card",
+        "flex h-full min-h-0 flex-col overflow-hidden",
+        !themed && "bg-card",
         embedded ? "flex-1" : "rounded-2xl border border-border",
       )}
+      style={themeStyle}
     >
       {!embedded && (
         <header className="shrink-0 border-b border-border px-4 py-3">
@@ -493,7 +516,14 @@ export function AgentVoice({
             </Button>
           </div>
         ) : transcript.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          <div
+            className={cn(
+              "flex flex-1 items-center justify-center rounded-xl border border-dashed p-6 text-center text-sm",
+              !themed && "border-border text-muted-foreground",
+              themed && "border-(--widget-border)",
+            )}
+            style={themed ? { color: "var(--widget-muted-text)" } : undefined}
+          >
             Start a voice session and speak to test how your agent responds.
           </div>
         ) : (
@@ -503,10 +533,15 @@ export function AgentVoice({
                 key={`${entry.role}-${index}`}
                 className={cn(
                   "max-w-[90%] rounded-2xl px-4 py-3 text-sm",
-                  entry.role === "user"
-                    ? "ml-auto bg-primary text-primary-foreground"
-                    : "bg-muted text-foreground",
+                  entry.role === "user" && "ml-auto",
+                  !themed &&
+                    (entry.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground"),
                 )}
+                style={
+                  entry.role === "user" ? userBubbleStyle : assistantBubbleStyle
+                }
               >
                 <p className="mb-1 text-xs font-medium opacity-70">
                   {entry.role === "user" ? "You" : agentName}
@@ -520,7 +555,13 @@ export function AgentVoice({
         <div ref={transcriptEndRef} />
 
         {status === "speaking" && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div
+            className={cn(
+              "flex items-center gap-2 text-sm",
+              !themed && "text-muted-foreground",
+            )}
+            style={themed ? { color: "var(--widget-muted-text)" } : undefined}
+          >
             <Loader2 className="size-4 animate-spin" />
             Agent is speaking…
           </div>
@@ -533,8 +574,19 @@ export function AgentVoice({
         </div>
       )}
 
-      <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border p-4">
-        <p className="text-sm text-muted-foreground">
+      <div
+        className={cn(
+          "flex shrink-0 items-center justify-between gap-3 border-t p-4",
+          themed ? "border-(--widget-border)" : "border-border",
+        )}
+        style={
+          themed ? { backgroundColor: appearance.backgroundColor } : undefined
+        }
+      >
+        <p
+          className={cn("text-sm", !themed && "text-muted-foreground")}
+          style={themed ? { color: "var(--widget-muted-text)" } : undefined}
+        >
           {status === "idle" && voiceAvailable && "Ready to connect"}
           {status === "connecting" && "Connecting…"}
           {status === "ready" && "Connected"}
@@ -545,13 +597,43 @@ export function AgentVoice({
 
         <div className="flex items-center gap-2">
           {status === "idle" || status === "error" ? (
-            <Button
-              onClick={() => void startSession()}
-              disabled={!voiceAvailable || isBusy}
+            themed ? (
+              <button
+                type="button"
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium disabled:pointer-events-none disabled:opacity-50"
+                style={{
+                  backgroundColor: appearance.sendButtonColor,
+                  color: appearance.sendButtonIconColor,
+                }}
+                onClick={() => void startSession()}
+                disabled={!voiceAvailable || isBusy}
+              >
+                <Mic className="size-4" />
+                {status === "error" ? "Retry voice" : "Start voice"}
+              </button>
+            ) : (
+              <Button
+                onClick={() => void startSession()}
+                disabled={!voiceAvailable || isBusy}
+              >
+                <Mic />
+                {status === "error" ? "Retry voice" : "Start voice"}
+              </Button>
+            )
+          ) : themed ? (
+            <button
+              type="button"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-sm font-medium"
+              style={{
+                backgroundColor: "transparent",
+                color: appearance.assistantFontColor,
+                borderColor: "var(--widget-border)",
+              }}
+              onClick={() => void endSession()}
             >
-              <Mic />
-              {status === "error" ? "Retry voice" : "Start voice"}
-            </Button>
+              <PhoneOff className="size-4" />
+              End session
+            </button>
           ) : (
             <Button variant="secondary" onClick={() => void endSession()}>
               <PhoneOff />
