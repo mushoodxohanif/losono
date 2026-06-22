@@ -1,16 +1,19 @@
-import { auth } from "@/auth";
-import { FloatingNavbar } from "@/components/landing/floating-navbar";
+import { Suspense } from "react";
+import {
+  PublicNavbar,
+  PublicNavbarFallback,
+} from "@/components/landing/public-navbar";
 
-export default async function PublicLayout({
+export default function PublicLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-
   return (
     <>
-      <FloatingNavbar isAuthenticated={!!session?.user} />
+      <Suspense fallback={<PublicNavbarFallback />}>
+        <PublicNavbar />
+      </Suspense>
       {children}
     </>
   );

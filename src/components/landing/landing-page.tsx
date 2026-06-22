@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { auth } from "@/auth";
 import { CtaSection } from "@/components/landing/cta-section";
 import { DeveloperSection } from "@/components/landing/developer-section";
@@ -6,10 +7,19 @@ import { PricingSection } from "@/components/landing/pricing-section";
 import { ProductMockupSection } from "@/components/landing/product-mockup-section";
 import { WorkflowSection } from "@/components/landing/workflow-section";
 
-export async function LandingPage() {
+async function AuthenticatedCtaSection() {
   const session = await auth();
-  const isAuthenticated = !!session?.user;
 
+  return <CtaSection isAuthenticated={!!session?.user} />;
+}
+
+async function AuthenticatedLandingFooter() {
+  const session = await auth();
+
+  return <LandingFooter isAuthenticated={!!session?.user} />;
+}
+
+export function LandingPage() {
   return (
     <div className="flex min-h-full flex-col">
       <main className="flex-1">
@@ -17,9 +27,13 @@ export async function LandingPage() {
         <WorkflowSection />
         <PricingSection />
         <DeveloperSection />
-        <CtaSection isAuthenticated={isAuthenticated} />
+        <Suspense fallback={<CtaSection />}>
+          <AuthenticatedCtaSection />
+        </Suspense>
       </main>
-      <LandingFooter isAuthenticated={isAuthenticated} />
+      <Suspense fallback={<LandingFooter />}>
+        <AuthenticatedLandingFooter />
+      </Suspense>
     </div>
   );
 }
