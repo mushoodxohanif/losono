@@ -1,3 +1,5 @@
+import { EmbedChromeFix } from "@/components/embed/embed-chrome-fix";
+
 export default function EmbedLayout({
   children,
 }: Readonly<{
@@ -5,18 +7,7 @@ export default function EmbedLayout({
 }>) {
   return (
     <>
-      <style>{`
-        html,
-        body {
-          background: transparent !important;
-          background-color: transparent !important;
-        }
-        body {
-          min-height: 0 !important;
-          height: 100%;
-          overflow: hidden;
-        }
-      `}</style>
+      <EmbedChromeFix />
       {children}
     </>
   );

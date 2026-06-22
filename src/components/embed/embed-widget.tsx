@@ -28,6 +28,7 @@ type EmbedWidgetProps = {
   voiceEnabled: boolean;
   defaultOpen?: boolean;
   compact?: boolean;
+  position?: "bottom-right" | "bottom-left";
 };
 
 function getVisitorId() {
@@ -96,10 +97,12 @@ export function EmbedWidget({
   voiceEnabled,
   defaultOpen = false,
   compact = false,
+  position = "bottom-right",
 }: EmbedWidgetProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [mode, setMode] = useState<"chat" | "voice">("chat");
   const [visitorId, setVisitorId] = useState("");
+  const anchorX = position === "bottom-left" ? "left-5" : "right-5";
   const form = useForm<EmbedChatValues>({
     resolver: zodResolver(embedChatSchema),
     defaultValues: { message: "" },
@@ -111,7 +114,6 @@ export function EmbedWidget({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
-  const embedResizeInitializedRef = useRef(false);
   const [conversationId, setConversationId] = useState<string | undefined>();
 
   const { messages, sendMessage, status, error, setMessages } =
@@ -211,28 +213,7 @@ export function EmbedWidget({
       return;
     }
 
-    if (!embedResizeInitializedRef.current) {
-      embedResizeInitializedRef.current = true;
-      window.parent.postMessage({ type: "losono:embed:resize", open }, "*");
-      return;
-    }
-
-    if (open) {
-      window.parent.postMessage(
-        { type: "losono:embed:resize", open: true },
-        "*",
-      );
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      window.parent.postMessage(
-        { type: "losono:embed:resize", open: false },
-        "*",
-      );
-    }, 300);
-
-    return () => window.clearTimeout(timer);
+    window.parent.postMessage({ type: "losono:embed:resize", open }, "*");
   }, [compact, open]);
 
   useEffect(() => {
@@ -264,7 +245,10 @@ export function EmbedWidget({
       ref={launcherRef}
       type="button"
       onClick={() => setOpen((prev) => !prev)}
-      className="flex size-14 shrink-0 items-center justify-center rounded-full bg-background shadow-lg ring-1 ring-border"
+      className={cn(
+        "pointer-events-auto fixed bottom-5 flex size-14 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border",
+        anchorX,
+      )}
       aria-label={
         open ? `Close chat with ${agentName}` : `Chat with ${agentName}`
       }
@@ -290,7 +274,9 @@ export function EmbedWidget({
         "flex min-h-0 flex-col bg-background",
         compact
           ? cn(
-              "absolute right-0 bottom-[4.25rem] h-[min(640px,80vh)] w-[min(400px,calc(100vw-2rem))] origin-bottom-right overflow-hidden rounded-2xl border border-border shadow-2xl transition-[opacity,transform] duration-300 ease-out",
+              "pointer-events-auto fixed bottom-[4.25rem] h-[min(640px,80vh)] w-[min(400px,calc(100vw-2.5rem))] origin-bottom-right overflow-hidden rounded-2xl border border-border shadow-xl transition-[opacity,transform] duration-300 ease-out",
+              anchorX,
+              position === "bottom-left" && "origin-bottom-left",
               open
                 ? "pointer-events-auto scale-100 opacity-100 delay-75"
                 : "pointer-events-none scale-95 opacity-0 delay-0",
@@ -428,9 +414,9 @@ export function EmbedWidget({
 
   if (compact) {
     return (
-      <div className="relative h-full w-full bg-transparent">
+      <div className="pointer-events-none fixed inset-0 bg-transparent">
         {panel}
-        <div className="absolute right-0 bottom-0">{launcherButton}</div>
+        {launcherButton}
       </div>
     );
   }

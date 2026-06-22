@@ -199,6 +199,19 @@
   }
 }
 
+html[data-embed="true"],
+html[data-embed="true"] body {
+  background: transparent;
+  background-color: transparent;
+  color-scheme: normal;
+}
+
+html[data-embed="true"] body {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
 @keyframes landing-float {
   0%,
   100% {

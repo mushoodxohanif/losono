@@ -7,18 +7,24 @@ import { getPublishedAgentBySlug } from "@/lib/db/queries/agents";
 
 type EmbedPageProps = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ position?: string }>;
 };
 
 function EmbedFallback() {
   return (
-    <div className="flex size-14 items-center justify-center bg-transparent">
-      <div className="size-10 animate-pulse rounded-full bg-muted/50" />
+    <div className="pointer-events-none fixed inset-0 bg-transparent">
+      <div className="fixed right-5 bottom-5 flex size-14 items-center justify-center">
+        <div className="size-10 animate-pulse rounded-full bg-muted/50" />
+      </div>
     </div>
   );
 }
 
-async function EmbedContent({ params }: EmbedPageProps) {
+async function EmbedContent({ params, searchParams }: EmbedPageProps) {
   const { slug } = await params;
+  const { position: positionParam } = await searchParams;
+  const position =
+    positionParam === "bottom-left" ? "bottom-left" : "bottom-right";
   const agent = await getPublishedAgentBySlug(slug);
 
   if (!agent) {
@@ -47,14 +53,15 @@ async function EmbedContent({ params }: EmbedPageProps) {
       voiceEnabled={modes === "chat+voice" && voiceAccess.allowed}
       compact
       defaultOpen={false}
+      position={position}
     />
   );
 }
 
-export default function EmbedPage({ params }: EmbedPageProps) {
+export default function EmbedPage({ params, searchParams }: EmbedPageProps) {
   return (
     <Suspense fallback={<EmbedFallback />}>
-      <EmbedContent params={params} />
+      <EmbedContent params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
