@@ -161,7 +161,7 @@ export function PreChatFormSettings({
         className="space-y-6"
         noValidate
       >
-        <Field orientation="horizontal">
+        <Field orientation="horizontal" className="mb-3">
           <input
             id="pre-chat-enabled"
             type="checkbox"
