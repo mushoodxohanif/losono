@@ -1,4 +1,4 @@
-import { and, count, eq, notExists } from "drizzle-orm";
+import { and, count, desc, eq, notExists } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import {
   type CrmExportStatus,
@@ -80,6 +80,30 @@ export async function listFailedSubmissionsForAgent(
         eq(crmExportLog.status, "failed"),
       ),
     );
+}
+
+export async function listFailedExportDetailsForAgent(
+  agentId: string,
+  integrationId: string,
+  limit = 10,
+) {
+  return getDb()
+    .select({
+      submissionId: crmExportLog.submissionId,
+      error: crmExportLog.error,
+      exportedAt: crmExportLog.exportedAt,
+      createdAt: crmExportLog.createdAt,
+    })
+    .from(crmExportLog)
+    .where(
+      and(
+        eq(crmExportLog.agentId, agentId),
+        eq(crmExportLog.integrationId, integrationId),
+        eq(crmExportLog.status, "failed"),
+      ),
+    )
+    .orderBy(desc(crmExportLog.createdAt))
+    .limit(limit);
 }
 
 export async function getCrmExportStatsForAgent(

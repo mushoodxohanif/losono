@@ -39,6 +39,11 @@ type ExportStats = {
   failed: number;
   skipped: number;
   pending: number;
+  failedExports?: Array<{
+    submissionId: string;
+    error: string | null;
+    failedAt: string;
+  }>;
 };
 
 type SalesCrmExportPanelProps = {
@@ -267,9 +272,23 @@ export function SalesCrmExportPanel({
         throw new Error(data.error ?? "Export failed");
       }
 
-      toast.success(
-        `Export complete: ${data.imported ?? 0} imported, ${data.skipped ?? 0} skipped, ${data.failed ?? 0} failed`,
-      );
+      const imported = data.imported ?? 0;
+      const skipped = data.skipped ?? 0;
+      const failed = data.failed ?? 0;
+
+      if (failed > 0 && imported === 0 && skipped === 0) {
+        toast.error(
+          `Export failed for ${failed} lead${failed === 1 ? "" : "s"}. See errors below.`,
+        );
+      } else if (failed > 0) {
+        toast.warning(
+          `Export complete: ${imported} imported, ${skipped} skipped, ${failed} failed`,
+        );
+      } else {
+        toast.success(
+          `Export complete: ${imported} imported, ${skipped} skipped`,
+        );
+      }
 
       await Promise.all([loadFieldMapping(), refreshIntegration()]);
       router.refresh();
@@ -674,6 +693,22 @@ export function SalesCrmExportPanel({
                       : ""}
                   </p>
                 )}
+
+                {exportStats?.failedExports &&
+                  exportStats.failedExports.length > 0 && (
+                    <div className="space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm">
+                      <p className="font-medium text-destructive">
+                        Recent export errors
+                      </p>
+                      <ul className="space-y-1 text-destructive/90">
+                        {exportStats.failedExports.map((entry) => (
+                          <li key={entry.submissionId}>
+                            {entry.error ?? "Unknown error"}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
                 <div className="flex flex-wrap gap-2">
                   <Button

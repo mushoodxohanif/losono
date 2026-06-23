@@ -1,6 +1,7 @@
 import { getAgentById, getAgentForUser } from "@/lib/db/queries/agents";
 import {
   getCrmExportStatsForAgent,
+  listFailedExportDetailsForAgent,
   listFailedSubmissionsForAgent,
   listUnexportedSubmissionsForAgent,
   upsertCrmExportLogEntry,
@@ -135,8 +136,6 @@ export async function exportSubmission(input: {
     context.mapping,
   );
 
-  fieldValues.losono_submission_id = submission.id;
-
   try {
     const result = await createSalesCrmLead(input.userId, {
       campaignId: context.campaignId,
@@ -202,13 +201,10 @@ export async function exportAllForAgent(
       const bulkResult = await createSalesCrmLeadsBulk(userId, {
         campaignId: context.campaignId,
         leads: chunk.map((submission) => ({
-          fieldValues: {
-            ...transformSubmissionResponses(
-              submission.responses,
-              context.mapping,
-            ),
-            losono_submission_id: submission.id,
-          },
+          fieldValues: transformSubmissionResponses(
+            submission.responses,
+            context.mapping,
+          ),
           idempotencyKey: submission.id,
         })),
       });
@@ -284,7 +280,19 @@ export async function getExportSummaryForAgent(
     return null;
   }
 
-  return getCrmExportStatsForAgent(agentId, integration.id);
+  const [stats, failedExports] = await Promise.all([
+    getCrmExportStatsForAgent(agentId, integration.id),
+    listFailedExportDetailsForAgent(agentId, integration.id),
+  ]);
+
+  return {
+    ...stats,
+    failedExports: failedExports.map((entry) => ({
+      submissionId: entry.submissionId,
+      error: entry.error,
+      failedAt: (entry.exportedAt ?? entry.createdAt).toISOString(),
+    })),
+  };
 }
 
 export async function syncNewSubmission(
