@@ -5,6 +5,7 @@ import {
   FileText,
   FlaskConical,
   LayoutDashboard,
+  MousePointerClick,
   Rocket,
   Settings,
   Upload,
@@ -50,6 +51,7 @@ const agentLinkIcons = {
   context: Upload,
   playground: FlaskConical,
   forms: ClipboardList,
+  tracking: MousePointerClick,
   deploy: Rocket,
 } as const;
 

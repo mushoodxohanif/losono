@@ -44,7 +44,7 @@ function isEmbedReferer(referer: string | null, slug: string): boolean {
   }
 }
 
-function isOriginAllowed(agent: Agent, origin: string | null): boolean {
+export function isOriginAllowed(agent: Agent, origin: string | null): boolean {
   const allowed = agent.settings.allowedOrigins ?? [];
   if (allowed.length === 0) {
     return true;

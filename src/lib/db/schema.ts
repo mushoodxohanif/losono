@@ -112,7 +112,7 @@ export const subscriptions = pgTable(
 
 export type AgentStatus = "draft" | "published";
 
-import type { PreChatFormConfig } from "@/lib/pre-chat-form";
+import type { PreChatField, PreChatFormConfig } from "@/lib/pre-chat-form";
 import type { WidgetTheme } from "@/lib/widget-theme";
 
 export type VoiceGender = "male" | "female";
@@ -242,6 +242,132 @@ export const messages = pgTable(
   (table) => [index("messages_conversation_id_idx").on(table.conversationId)],
 );
 
+// --- External forms & tracking ---
+
+export type TrackingSessionSummary = {
+  lastEvent?: { name: string; at: string };
+  eventCounts?: Record<string, number>;
+};
+
+export const externalForms = pgTable(
+  "external_forms",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    fields: jsonb("fields").$type<PreChatField[]>().notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("external_forms_agent_slug_idx").on(table.agentId, table.slug),
+    index("external_forms_agent_id_idx").on(table.agentId),
+  ],
+);
+
+export const externalFormSubmissions = pgTable(
+  "external_form_submissions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    formId: uuid("form_id").references(() => externalForms.id, {
+      onDelete: "set null",
+    }),
+    visitorId: text("visitor_id").notNull(),
+    responses: jsonb("responses").$type<Record<string, string>>().notNull(),
+    pageUrl: text("page_url"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("external_form_submissions_agent_id_idx").on(table.agentId),
+    index("external_form_submissions_form_id_idx").on(table.formId),
+    index("external_form_submissions_created_at_idx").on(table.createdAt),
+  ],
+);
+
+export const trackingSessions = pgTable(
+  "tracking_sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    visitorId: text("visitor_id").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    lastActivityAt: timestamp("last_activity_at", {
+      withTimezone: true,
+    }).notNull(),
+    landingPage: text("landing_page"),
+    referrer: text("referrer"),
+    eventCount: integer("event_count").notNull().default(0),
+    summary: jsonb("summary").$type<TrackingSessionSummary>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("tracking_sessions_agent_id_idx").on(table.agentId),
+    index("tracking_sessions_last_activity_at_idx").on(table.lastActivityAt),
+    index("tracking_sessions_agent_visitor_idx").on(
+      table.agentId,
+      table.visitorId,
+    ),
+  ],
+);
+
+export const trackingEvents = pgTable(
+  "tracking_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => trackingSessions.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    visitorId: text("visitor_id").notNull(),
+    eventName: text("event_name").notNull(),
+    properties: jsonb("properties").$type<Record<string, unknown>>(),
+    pageUrl: text("page_url"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("tracking_events_session_id_idx").on(table.sessionId),
+    index("tracking_events_agent_id_idx").on(table.agentId),
+    index("tracking_events_created_at_idx").on(table.createdAt),
+  ],
+);
+
+export const trackingRateLimits = pgTable(
+  "tracking_rate_limits",
+  {
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    visitorId: text("visitor_id").notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    eventCount: integer("event_count").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.agentId, table.visitorId] }),
+    index("tracking_rate_limits_updated_at_idx").on(table.updatedAt),
+  ],
+);
+
 // --- Pre-chat form submissions ---
 
 export const formSubmissions = pgTable(
@@ -273,6 +399,8 @@ export type CrmProvider = "sales-crm";
 export type CrmFieldMapping = Record<string, string>;
 
 export type CrmExportStatus = "pending" | "success" | "failed" | "skipped";
+
+export type CrmLeadSource = "pre_chat" | "external_form" | "session";
 
 export const crmIntegrations = pgTable(
   "crm_integrations",
@@ -341,9 +469,11 @@ export const crmExportLog = pgTable(
   "crm_export_log",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    submissionId: uuid("submission_id")
-      .notNull()
-      .references(() => formSubmissions.id, { onDelete: "cascade" }),
+    submissionId: uuid("submission_id").references(() => formSubmissions.id, {
+      onDelete: "cascade",
+    }),
+    leadSource: text("lead_source").$type<CrmLeadSource>().notNull(),
+    leadSourceId: uuid("lead_source_id").notNull(),
     integrationId: uuid("integration_id")
       .notNull()
       .references(() => crmIntegrations.id, { onDelete: "cascade" }),
@@ -359,13 +489,15 @@ export const crmExportLog = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex("crm_export_log_submission_integration_idx").on(
-      table.submissionId,
+    uniqueIndex("crm_export_log_lead_source_idx").on(
+      table.leadSource,
+      table.leadSourceId,
       table.integrationId,
     ),
     index("crm_export_log_integration_id_idx").on(table.integrationId),
     index("crm_export_log_agent_id_idx").on(table.agentId),
     index("crm_export_log_status_idx").on(table.status),
+    index("crm_export_log_submission_id_idx").on(table.submissionId),
   ],
 );
 
@@ -425,6 +557,16 @@ export type Conversation = typeof conversations.$inferSelect;
 export type NewConversation = typeof conversations.$inferInsert;
 export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
+export type ExternalForm = typeof externalForms.$inferSelect;
+export type NewExternalForm = typeof externalForms.$inferInsert;
+export type ExternalFormSubmission =
+  typeof externalFormSubmissions.$inferSelect;
+export type NewExternalFormSubmission =
+  typeof externalFormSubmissions.$inferInsert;
+export type TrackingSession = typeof trackingSessions.$inferSelect;
+export type NewTrackingSession = typeof trackingSessions.$inferInsert;
+export type TrackingEvent = typeof trackingEvents.$inferSelect;
+export type NewTrackingEvent = typeof trackingEvents.$inferInsert;
 export type FormSubmission = typeof formSubmissions.$inferSelect;
 export type NewFormSubmission = typeof formSubmissions.$inferInsert;
 export type CrmIntegration = typeof crmIntegrations.$inferSelect;

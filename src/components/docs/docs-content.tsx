@@ -17,6 +17,11 @@ const toc = [
   { href: "#comparison", label: "Choose an integration" },
   { href: "#embed-widget", label: "Embed widget guide" },
   { href: "#custom-api", label: "Custom API guide" },
+  { href: "#lead-tracking", label: "Lead tracking overview" },
+  { href: "#track-script", label: "track.js setup" },
+  { href: "#click-events", label: "Click events API" },
+  { href: "#external-forms", label: "External forms API" },
+  { href: "#sales-crm", label: "Sales CRM sync" },
   { href: "#authentication", label: "Authentication" },
   { href: "#message-format", label: "Message format" },
   { href: "#errors", label: "Error codes" },
@@ -25,6 +30,7 @@ const toc = [
 export function DocsContent({ appUrl }: DocsContentProps) {
   const exampleSlug = "your-agent-slug";
   const exampleAgentId = "550e8400-e29b-41d4-a716-446655440000";
+  const exampleVisitorId = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
   const exampleApiKey = "losono_sk_...";
   const embedScript = `<script src="${appUrl}/embed.js" data-agent="${exampleSlug}"></script>`;
   const embedScriptPosition = `<script
@@ -35,6 +41,12 @@ export function DocsContent({ appUrl }: DocsContentProps) {
   const embedUrl = `${appUrl}/embed/${exampleSlug}`;
   const chatEndpoint = `${appUrl}/api/agents/${exampleAgentId}/chat`;
   const voiceEndpoint = `${appUrl}/api/agents/${exampleAgentId}/voice?mode=deploy`;
+  const trackScript = `<script src="${appUrl}/track.js" data-agent="${exampleSlug}"></script>`;
+  const freeformFormEndpoint = `${appUrl}/api/agents/${exampleAgentId}/forms/submit`;
+  const registeredFormEndpoint = `${appUrl}/api/agents/${exampleAgentId}/forms/contact/submit`;
+  const publicAgentEndpoint = `${appUrl}/api/public/agents/${exampleSlug}`;
+  const trackConfigEndpoint = `${appUrl}/api/agents/${exampleAgentId}/track/config`;
+  const exampleFormId = "contact";
 
   return (
     <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:gap-12">
@@ -68,11 +80,12 @@ export function DocsContent({ appUrl }: DocsContentProps) {
             Integration guide
           </h1>
           <p className="max-w-2xl text-muted-foreground">
-            Losono agents can be integrated in two ways: a drop-in embed widget
-            for websites, or a custom API integration for server-side chat,
-            mobile apps, and bespoke UIs. Both paths use the same published
-            agent, RAG context, and billing — they differ in setup, auth, and
-            who builds the interface.
+            Losono agents can be integrated in three ways: a drop-in embed
+            widget for chat and voice, a custom API for server-side chat and
+            bespoke UIs, or lead tracking to capture external form submissions
+            and click events on your existing site. All paths use the same
+            published agent and can be combined — they differ in setup, auth,
+            and what you build on your side.
           </p>
           <DocsCard>
             <p className="text-sm font-medium">Quick reference</p>
@@ -114,11 +127,69 @@ export function DocsContent({ appUrl }: DocsContentProps) {
                 </dd>
               </div>
               <div>
+                <dt className="text-muted-foreground">Track loader</dt>
+                <dd>
+                  <code className="text-xs">{appUrl}/track.js</code>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Track API</dt>
+                <dd>
+                  <code className="text-xs">
+                    POST {appUrl}/api/agents/{"{agentId}"}/track
+                  </code>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Freeform form API</dt>
+                <dd>
+                  <code className="text-xs">
+                    POST {appUrl}/api/agents/{"{agentId}"}/forms/submit
+                  </code>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Registered form API</dt>
+                <dd>
+                  <code className="text-xs">
+                    POST {appUrl}/api/agents/{"{agentId}"}/forms/{"{formId}"}
+                    /submit
+                  </code>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Public slug lookup</dt>
+                <dd>
+                  <code className="text-xs">
+                    GET {appUrl}/api/public/agents/{"{slug}"}
+                  </code>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Track config API</dt>
+                <dd>
+                  <code className="text-xs">
+                    GET {appUrl}/api/agents/{"{agentId}"}/track/config
+                  </code>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Visitor ID key</dt>
+                <dd>
+                  <code className="text-xs">losono_visitor_id</code>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    (shared with embed widget)
+                  </span>
+                </dd>
+              </div>
+              <div>
                 <dt className="text-muted-foreground">Agent identifiers</dt>
                 <dd className="text-muted-foreground">
-                  Embed uses <strong className="text-foreground">slug</strong> ·
-                  API uses <strong className="text-foreground">agentId</strong>{" "}
-                  (UUID from dashboard URL)
+                  Embed and track.js use{" "}
+                  <strong className="text-foreground">slug</strong> · API uses{" "}
+                  <strong className="text-foreground">agentId</strong> (UUID
+                  from dashboard URL)
                 </dd>
               </div>
             </dl>
@@ -128,15 +199,16 @@ export function DocsContent({ appUrl }: DocsContentProps) {
         <DocsSection
           id="comparison"
           title="Choose an integration"
-          description="Pick the path that matches your product. You can use both on the same agent."
+          description="Pick the path that matches your product. You can combine all three on the same agent."
         >
           <div className="overflow-x-auto rounded-2xl border border-border">
-            <table className="w-full min-w-[640px] text-left text-sm">
+            <table className="w-full min-w-[900px] text-left text-sm">
               <thead className="border-b border-border bg-muted/40">
                 <tr>
                   <th className="px-4 py-3 font-medium"> </th>
                   <th className="px-4 py-3 font-medium">Embed widget</th>
                   <th className="px-4 py-3 font-medium">Custom API</th>
+                  <th className="px-4 py-3 font-medium">Lead tracking</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -148,6 +220,10 @@ export function DocsContent({ appUrl }: DocsContentProps) {
                   <td className="px-4 py-3">
                     Server-side chat, mobile apps, fully custom UI
                   </td>
+                  <td className="px-4 py-3">
+                    Existing site forms and intent clicks (brochure downloads,
+                    product views)
+                  </td>
                 </tr>
                 <tr>
                   <td className="px-4 py-3 text-muted-foreground">
@@ -155,12 +231,18 @@ export function DocsContent({ appUrl }: DocsContentProps) {
                   </td>
                   <td className="px-4 py-3">One script tag</td>
                   <td className="px-4 py-3">API key + HTTP/WebSocket client</td>
+                  <td className="px-4 py-3">
+                    One script tag (+ optional server webhook)
+                  </td>
                 </tr>
                 <tr>
                   <td className="px-4 py-3 text-muted-foreground">API key</td>
                   <td className="px-4 py-3">Not required</td>
                   <td className="px-4 py-3">
                     Required (or allowed-origin browser calls)
+                  </td>
+                  <td className="px-4 py-3">
+                    Not required in browser; required for server-side form POST
                   </td>
                 </tr>
                 <tr>
@@ -169,6 +251,7 @@ export function DocsContent({ appUrl }: DocsContentProps) {
                   <td className="px-4 py-3">
                     You implement UI + streaming parser
                   </td>
+                  <td className="px-4 py-3">N/A</td>
                 </tr>
                 <tr>
                   <td className="px-4 py-3 text-muted-foreground">Voice</td>
@@ -177,6 +260,15 @@ export function DocsContent({ appUrl }: DocsContentProps) {
                   </td>
                   <td className="px-4 py-3">
                     WebSocket to Gemini Live via session token (Pro plan)
+                  </td>
+                  <td className="px-4 py-3">N/A</td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-3 text-muted-foreground">CRM sync</td>
+                  <td className="px-4 py-3">Pre-chat form (auto)</td>
+                  <td className="px-4 py-3">N/A</td>
+                  <td className="px-4 py-3">
+                    External forms (auto); sessions (manual from dashboard)
                   </td>
                 </tr>
                 <tr>
@@ -188,6 +280,10 @@ export function DocsContent({ appUrl }: DocsContentProps) {
                   </td>
                   <td className="px-4 py-3">
                     <code>agentId</code> in URL path
+                  </td>
+                  <td className="px-4 py-3">
+                    <code>data-agent=&quot;slug&quot;</code> in browser;{" "}
+                    <code>agentId</code> for server webhooks
                   </td>
                 </tr>
               </tbody>
@@ -485,6 +581,12 @@ export function DocsContent({ appUrl }: DocsContentProps) {
                   Conversations and messages are stored in the visitor&apos;s
                   browser localStorage under keys prefixed with{" "}
                   <code>losono_</code>.
+                </li>
+                <li>
+                  The embed widget and <code>track.js</code> share the same{" "}
+                  <code>losono_visitor_id</code> localStorage key. A visitor who
+                  submits an external form and later opens the chat widget can
+                  be correlated by visitor ID in the dashboard.
                 </li>
               </ol>
             </DocsSubsection>
@@ -903,9 +1005,608 @@ Content-Type: application/json
         </DocsSection>
 
         <DocsSection
+          id="lead-tracking"
+          title="Lead tracking"
+          description="Capture form submissions and click events from your existing website without replacing your UI. Data appears in the dashboard and can sync to Sales CRM."
+        >
+          <DocsCard>
+            <DocsSubsection title="What gets captured">
+              <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                <li>
+                  <strong className="text-foreground">
+                    External form submissions
+                  </strong>{" "}
+                  — registered forms (validated against a schema you define) or
+                  freeform key-value payloads from any HTML form or server
+                  handler.
+                </li>
+                <li>
+                  <strong className="text-foreground">
+                    Click and behavior events
+                  </strong>{" "}
+                  — individual interactions (e.g. brochure downloads, product
+                  views) grouped into visitor sessions with a 30-minute
+                  inactivity window.
+                </li>
+              </ul>
+            </DocsSubsection>
+
+            <DocsSubsection title="Where data appears">
+              <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                <li>
+                  <Link
+                    href={`/agents/${exampleAgentId}/forms`}
+                    className="text-primary hover:underline"
+                  >
+                    Forms page
+                  </Link>{" "}
+                  — external form definitions, submissions table, and CRM field
+                  mapping for form fields.
+                </li>
+                <li>
+                  <Link
+                    href={`/agents/${exampleAgentId}/tracking`}
+                    className="text-primary hover:underline"
+                  >
+                    Tracking page
+                  </Link>{" "}
+                  — script snippet, sessions list, event log, and manual session
+                  export to CRM.
+                </li>
+              </ul>
+            </DocsSubsection>
+
+            <DocsSubsection title="CRM export behavior">
+              <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                <li>
+                  Pre-chat and external form submissions sync to Sales CRM{" "}
+                  <strong className="text-foreground">automatically</strong> on
+                  submit when CRM is connected and field mapping is complete.
+                </li>
+                <li>
+                  Tracking sessions export to CRM{" "}
+                  <strong className="text-foreground">manually</strong> from the
+                  Tracking page (bulk export and retry, same pattern as form
+                  exports).
+                </li>
+              </ul>
+            </DocsSubsection>
+
+            <DocsSubsection title="Prerequisites">
+              <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                <li>
+                  Agent is{" "}
+                  <strong className="text-foreground">published</strong>.
+                </li>
+                <li>
+                  For browser calls from your domain: configure{" "}
+                  <strong className="text-foreground">Allowed origins</strong>{" "}
+                  on the deploy page (same as embed iframe chat).
+                </li>
+                <li>
+                  For server-side form POST: create an API key on the deploy
+                  page.
+                </li>
+              </ul>
+            </DocsSubsection>
+          </DocsCard>
+        </DocsSection>
+
+        <DocsSection
+          id="track-script"
+          title="track.js setup"
+          description="Add lead tracking to any page with a single script tag. No API key is exposed in HTML — browser requests authenticate via allowed origins."
+        >
+          <DocsCard>
+            <DocsStepList>
+              <DocsStep title="1. Publish the agent">
+                <p>
+                  Same as the embed path — tracking endpoints reject traffic
+                  until the agent is published.
+                </p>
+              </DocsStep>
+
+              <DocsStep title="2. Register external forms (optional)">
+                <p>
+                  On the agent{" "}
+                  <Link
+                    href={`/agents/${exampleAgentId}/forms`}
+                    className="text-primary hover:underline"
+                  >
+                    Forms page
+                  </Link>
+                  , create registered forms with field schemas. Skip this step
+                  if you only need freeform submissions.
+                </p>
+              </DocsStep>
+
+              <DocsStep title="3. Configure allowed origins">
+                <p>
+                  On the deploy page, add your site origins (e.g.{" "}
+                  <code>https://www.example.com</code>). Browser calls from
+                  <code>track.js</code> require a matching <code>Origin</code>{" "}
+                  header.
+                </p>
+              </DocsStep>
+
+              <DocsStep title="4. Copy the track.js snippet">
+                <p>
+                  From the agent{" "}
+                  <Link
+                    href={`/agents/${exampleAgentId}/tracking`}
+                    className="text-primary hover:underline"
+                  >
+                    Tracking page
+                  </Link>
+                  , copy the script tag:
+                </p>
+                <CodeBlock>{trackScript}</CodeBlock>
+              </DocsStep>
+
+              <DocsStep title="5. Add the script before &lt;/body&gt;">
+                <p>
+                  Paste on every page where you want click tracking or
+                  declarative form capture. The loader resolves your agent slug
+                  via <code>GET /api/public/agents/{"{slug}"}</code>, then loads
+                  tracking limits and registered forms from{" "}
+                  <code>GET /api/agents/{"{agentId}"}/track/config</code> — no
+                  UUID in the snippet.
+                </p>
+              </DocsStep>
+
+              <DocsStep title="6. Verify in the dashboard">
+                <p>
+                  Trigger a test click or form submit, then check the Tracking
+                  page for new sessions and events.
+                </p>
+              </DocsStep>
+            </DocsStepList>
+
+            <DocsSubsection title="Declarative HTML">
+              <CodeBlock title="Click tracking">
+                {`<!-- Declarative click tracking -->
+<a href="/brochure.pdf" data-losono-track="document_open"
+   data-losono-props='{"documentId":"brochure-2024"}'>
+  Download brochure
+</a>`}
+              </CodeBlock>
+              <CodeBlock title="Registered form capture">
+                {`<!-- Declarative form capture (registered form slug) -->
+<form data-losono-form="contact">
+  <input name="email" type="email" required />
+  <input name="name" type="text" />
+  <button type="submit">Send</button>
+</form>`}
+              </CodeBlock>
+            </DocsSubsection>
+
+            <DocsSubsection title="Form capture modes">
+              <p className="text-sm text-muted-foreground">
+                By default, <code>data-losono-form</code> intercepts the submit
+                event (<code>preventDefault</code>) and sends data to Losono
+                only — your native form POST or email handler will not run.
+                Listen for <code>losono:submitted</code> or{" "}
+                <code>losono:submit-error</code> on the form element for
+                client-side feedback.
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                To capture in Losono{" "}
+                <strong className="text-foreground">and</strong> keep native
+                browser submission (e.g. Formspree, Netlify Forms), add{" "}
+                <code>data-losono-form-mode="dual"</code>:
+              </p>
+              <CodeBlock title="Dual capture (Losono + native submit)">
+                {`<form data-losono-form="contact" data-losono-form-mode="dual" action="/thanks" method="post">
+  <input name="email" type="email" required />
+  <button type="submit">Send</button>
+</form>`}
+              </CodeBlock>
+            </DocsSubsection>
+
+            <DocsSubsection title="Programmatic API">
+              <p className="text-sm text-muted-foreground">
+                After <code>track.js</code> loads, use the global{" "}
+                <code>window.Losono</code> object:
+              </p>
+              <CodeBlock>
+                {`// Programmatic API (after track.js loads)
+Losono.track("product_view", { productId: "sku-123", name: "Widget Pro" });
+Losono.identify({ email: "user@example.com", name: "Jane" });
+Losono.submitForm({ email: "user@example.com", message: "Hello" });`}
+              </CodeBlock>
+              <p className="text-sm text-muted-foreground">
+                <code>Losono.identify()</code> stores traits in localStorage
+                (key <code>losono_traits</code>) alongside{" "}
+                <code>losono_visitor_id</code>. Subsequent events and form
+                submissions include those traits automatically.
+              </p>
+            </DocsSubsection>
+
+            <DocsSubsection title="Server-side form webhook">
+              <p className="text-sm text-muted-foreground">
+                For backend form handlers, POST directly to the freeform form
+                API with a Bearer token — copy the webhook URL and API key from
+                the Forms page:
+              </p>
+              <CodeBlock>
+                {`POST ${freeformFormEndpoint}
+Authorization: Bearer ${exampleApiKey}`}
+              </CodeBlock>
+            </DocsSubsection>
+          </DocsCard>
+        </DocsSection>
+
+        <DocsSection
+          id="click-events"
+          title="Click events API"
+          description="Ingest click and behavior events. Events are grouped into sessions server-side — clients do not manage session IDs."
+        >
+          <DocsCard>
+            <p className="text-sm text-muted-foreground">
+              <code>
+                POST {appUrl}/api/agents/{"{agentId}"}/track
+              </code>
+            </p>
+
+            <DocsSubsection title="Tracking config">
+              <p className="text-sm text-muted-foreground">
+                Fetch limits, registered form schemas, and known event names
+                (for dashboard validation) via:
+              </p>
+              <CodeBlock>{`GET ${trackConfigEndpoint}`}</CodeBlock>
+              <p className="text-sm text-muted-foreground">
+                <code>track.js</code> loads this after resolving the agent slug.
+                Dashboard owners can also call this endpoint while signed in.
+              </p>
+            </DocsSubsection>
+
+            <DocsSubsection title="Single event">
+              <CodeBlock>
+                {`{
+  "visitorId": "${exampleVisitorId}",
+  "event": "document_open",
+  "properties": {
+    "documentId": "brochure-2024",
+    "title": "Product brochure"
+  },
+  "pageUrl": "https://client.com/products",
+  "timestamp": "2026-06-30T12:00:00Z"
+}`}
+              </CodeBlock>
+            </DocsSubsection>
+
+            <DocsSubsection title="Batch events">
+              <CodeBlock>
+                {`{
+  "visitorId": "${exampleVisitorId}",
+  "referrer": "https://google.com",
+  "events": [
+    {
+      "event": "page_view",
+      "pageUrl": "https://client.com/pricing"
+    },
+    {
+      "event": "cta_click",
+      "properties": { "label": "Start trial" }
+    }
+  ]
+}`}
+              </CodeBlock>
+              <p className="text-sm text-muted-foreground">
+                Batch size is capped at 20 events per request. Each event&apos;s{" "}
+                <code>properties</code> object must be at most 8 KB when
+                serialized.
+              </p>
+            </DocsSubsection>
+
+            <DocsSubsection title="Request fields">
+              <div className="overflow-x-auto rounded-xl border border-border">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-border bg-muted/40">
+                    <tr>
+                      <th className="px-4 py-2 font-medium">Field</th>
+                      <th className="px-4 py-2 font-medium">Required</th>
+                      <th className="px-4 py-2 font-medium">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border text-muted-foreground">
+                    <tr>
+                      <td className="px-4 py-2">
+                        <code>visitorId</code>
+                      </td>
+                      <td className="px-4 py-2">Yes</td>
+                      <td className="px-4 py-2">
+                        Stable UUID; <code>track.js</code> persists this in{" "}
+                        <code>losono_visitor_id</code>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2">
+                        <code>event</code>
+                      </td>
+                      <td className="px-4 py-2">Yes*</td>
+                      <td className="px-4 py-2">
+                        Event name for single-event body; omit when using{" "}
+                        <code>events</code> array
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2">
+                        <code>events</code>
+                      </td>
+                      <td className="px-4 py-2">No</td>
+                      <td className="px-4 py-2">
+                        Batch alternative to top-level <code>event</code>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2">
+                        <code>properties</code>
+                      </td>
+                      <td className="px-4 py-2">No</td>
+                      <td className="px-4 py-2">
+                        Arbitrary JSON object (max 8 KB per event)
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2">
+                        <code>pageUrl</code>
+                      </td>
+                      <td className="px-4 py-2">No</td>
+                      <td className="px-4 py-2">
+                        Page where the event occurred
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2">
+                        <code>timestamp</code>
+                      </td>
+                      <td className="px-4 py-2">No</td>
+                      <td className="px-4 py-2">ISO 8601 client timestamp</td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2">
+                        <code>referrer</code>
+                      </td>
+                      <td className="px-4 py-2">No</td>
+                      <td className="px-4 py-2">Stored on new sessions only</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </DocsSubsection>
+
+            <DocsSubsection title="Response">
+              <CodeBlock>
+                {`{
+  "sessionId": "uuid",
+  "eventIds": ["uuid", "uuid"],
+  "eventCount": 12
+}`}
+              </CodeBlock>
+            </DocsSubsection>
+
+            <DocsSubsection title="Session behavior">
+              <p className="text-sm text-muted-foreground">
+                Losono finds an open session for{" "}
+                <code>(agentId, visitorId)</code> where{" "}
+                <code>lastActivityAt</code> is within the last 30 minutes. If
+                none exists, a new session is created with landing page and
+                referrer. Each ingested event increments <code>eventCount</code>{" "}
+                and updates the session summary. Sessions are stored only — no
+                CRM call on ingest.
+              </p>
+            </DocsSubsection>
+
+            <DocsSubsection title="Auth and rate limits">
+              <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                <li>
+                  <strong className="text-foreground">Browser:</strong>{" "}
+                  <code>Origin</code> must match an allowed origin on the agent.
+                  CORS headers are returned on success.
+                </li>
+                <li>
+                  <strong className="text-foreground">Server:</strong>{" "}
+                  <code>Authorization: Bearer losono_sk_...</code> for batch
+                  ingest from backends.
+                </li>
+                <li>
+                  Rate limit: 100 events per visitor per minute. Exceeding
+                  returns <code>429 rate_limited</code>.
+                </li>
+              </ul>
+            </DocsSubsection>
+          </DocsCard>
+        </DocsSection>
+
+        <DocsSection
+          id="external-forms"
+          title="External forms API"
+          description="Capture leads from HTML forms on your site or from server-side handlers. Registered forms validate against dashboard schemas; freeform accepts any key-value payload."
+        >
+          <DocsCard>
+            <DocsSubsection title="Registered forms">
+              <p className="text-sm text-muted-foreground">
+                Create the form in the dashboard first, then submit to:
+              </p>
+              <CodeBlock>{`POST ${registeredFormEndpoint}`}</CodeBlock>
+              <p className="text-sm text-muted-foreground">
+                Use the form <strong className="text-foreground">slug</strong>{" "}
+                or UUID as <code>formId</code>. With <code>track.js</code>, set{" "}
+                <code>data-losono-form=&quot;{exampleFormId}&quot;</code> on the{" "}
+                <code>&lt;form&gt;</code> element — the script intercepts submit
+                and POSTs to this endpoint. Field validation matches the
+                registered schema.
+              </p>
+
+              <p className="text-sm font-medium">Request body</p>
+              <CodeBlock>
+                {`{
+  "visitorId": "${exampleVisitorId}",
+  "responses": {
+    "email": "jane@example.com",
+    "name": "Jane Doe"
+  },
+  "pageUrl": "https://example.com/contact",
+  "metadata": { "utm_source": "google" }
+}`}
+              </CodeBlock>
+
+              <p className="text-sm font-medium">Response</p>
+              <CodeBlock>
+                {`{
+  "submissionId": "uuid",
+  "formId": "uuid",
+  "submitted": true
+}`}
+              </CodeBlock>
+            </DocsSubsection>
+
+            <DocsSubsection title="Freeform submissions">
+              <p className="text-sm text-muted-foreground">
+                Accept any <code>responses</code> object without a
+                pre-registered schema:
+              </p>
+              <CodeBlock>{`POST ${freeformFormEndpoint}`}</CodeBlock>
+
+              <CodeBlock title="curl — server-side freeform submit">
+                {`curl -X POST "${freeformFormEndpoint}" \\
+  -H "Authorization: Bearer ${exampleApiKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "visitorId": "${exampleVisitorId}",
+    "responses": { "email": "jane@example.com", "company": "Acme" },
+    "pageUrl": "https://example.com/contact",
+    "formName": "Contact page"
+  }'`}
+              </CodeBlock>
+
+              <p className="text-sm font-medium">Response</p>
+              <CodeBlock>
+                {`{
+  "submissionId": "uuid",
+  "submitted": true
+}`}
+              </CodeBlock>
+            </DocsSubsection>
+
+            <DocsSubsection title="CRM field mapping">
+              <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                <li>
+                  <strong className="text-foreground">Registered forms:</strong>{" "}
+                  map each form field to CRM columns on the Forms page (
+                  namespaced keys like{" "}
+                  <code>
+                    external:{"{formId}"}:{"{fieldId}"}
+                  </code>
+                  ).
+                </li>
+                <li>
+                  <strong className="text-foreground">Freeform:</strong> common
+                  keys such as <code>email</code>, <code>name</code>, and{" "}
+                  <code>phone</code> auto-map via normalized label matching;
+                  configure explicit mappings for other keys on the Forms page.
+                </li>
+                <li>
+                  Submissions sync to Sales CRM automatically on success when
+                  CRM is connected and mapping is complete (same as pre-chat
+                  forms).
+                </li>
+              </ul>
+            </DocsSubsection>
+          </DocsCard>
+        </DocsSection>
+
+        <DocsSection
+          id="sales-crm"
+          title="Sales CRM sync"
+          description="Developer-oriented summary of how leads reach your CRM. OAuth and field mapping UI live in the dashboard."
+        >
+          <DocsCard>
+            <div className="overflow-x-auto rounded-xl border border-border">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-border bg-muted/40">
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Source</th>
+                    <th className="px-4 py-2 font-medium">Sync trigger</th>
+                    <th className="px-4 py-2 font-medium">Dashboard</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border text-muted-foreground">
+                  <tr>
+                    <td className="px-4 py-2">Pre-chat form</td>
+                    <td className="px-4 py-2">Auto on submit</td>
+                    <td className="px-4 py-2">
+                      <Link
+                        href={`/agents/${exampleAgentId}/forms`}
+                        className="text-primary hover:underline"
+                      >
+                        Forms
+                      </Link>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-2">External form</td>
+                    <td className="px-4 py-2">Auto on submit</td>
+                    <td className="px-4 py-2">
+                      <Link
+                        href={`/agents/${exampleAgentId}/forms`}
+                        className="text-primary hover:underline"
+                      >
+                        Forms
+                      </Link>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-2">Tracking session</td>
+                    <td className="px-4 py-2">Manual export</td>
+                    <td className="px-4 py-2">
+                      <Link
+                        href={`/agents/${exampleAgentId}/tracking`}
+                        className="text-primary hover:underline"
+                      >
+                        Tracking
+                      </Link>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <DocsSubsection title="Idempotency">
+              <p className="text-sm text-muted-foreground">
+                Export records use Losono UUIDs as idempotency keys (
+                <code>leadSource</code> + <code>leadSourceId</code>). Retrying a
+                failed export does not create duplicate CRM records when the
+                original sync succeeded.
+              </p>
+            </DocsSubsection>
+
+            <DocsSubsection title="Session export fields">
+              <p className="text-sm text-muted-foreground">
+                Session exports expose virtual fields you can map to CRM
+                columns:
+              </p>
+              <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                <li>
+                  <code>session:visitor_id</code>,{" "}
+                  <code>session:landing_page</code>,{" "}
+                  <code>session:referrer</code>
+                </li>
+                <li>
+                  <code>session:event_count</code>,{" "}
+                  <code>session:last_event</code>,{" "}
+                  <code>session:events_summary</code>
+                </li>
+              </ul>
+            </DocsSubsection>
+          </DocsCard>
+        </DocsSection>
+
+        <DocsSection
           id="authentication"
           title="Authentication"
-          description="How Losono validates requests depends on the integration path."
+          description="How Losono validates requests depends on the integration path. Track and form endpoints share the same deploy access rules as chat."
         >
           <DocsCard>
             <DocsSubsection title="Embed widget">
@@ -959,6 +1660,34 @@ Content-Type: application/json
                 </li>
               </ul>
             </DocsSubsection>
+
+            <DocsSubsection title="Lead tracking auth">
+              <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
+                <li>
+                  <strong className="text-foreground">
+                    Browser (track.js):
+                  </strong>{" "}
+                  No API key in HTML. Requests authenticate via allowed origins
+                  on the agent — the same mechanism as embed iframe chat.{" "}
+                  <code>track.js</code> resolves the agent slug through{" "}
+                  <code>GET {publicAgentEndpoint}</code>.
+                </li>
+                <li>
+                  <strong className="text-foreground">
+                    Server-side form POST:
+                  </strong>{" "}
+                  <code>Authorization: Bearer losono_sk_...</code> on{" "}
+                  <code>POST /api/agents/{"{agentId}"}/forms/submit</code> (and
+                  registered form endpoints).
+                </li>
+                <li>
+                  <strong className="text-foreground">visitorId:</strong>{" "}
+                  Client-generated UUID persisted in localStorage under{" "}
+                  <code>losono_visitor_id</code>. Shared with the embed widget
+                  for cross-surface visitor correlation.
+                </li>
+              </ul>
+            </DocsSubsection>
           </DocsCard>
         </DocsSection>
 
@@ -993,7 +1722,7 @@ Content-Type: application/json
         <DocsSection
           id="errors"
           title="Error codes"
-          description="Common JSON error bodies returned by deploy APIs."
+          description="Common JSON error bodies returned by deploy, track, and form APIs."
         >
           <div className="overflow-x-auto rounded-2xl border border-border">
             <table className="w-full text-left text-sm">
@@ -1032,6 +1761,31 @@ Content-Type: application/json
                     "No non-empty user text in messages",
                   ],
                   ["400", "invalid_mode", "mode must be chat or playground"],
+                  [
+                    "400",
+                    "invalid_json",
+                    "Malformed JSON request body (track/form endpoints)",
+                  ],
+                  [
+                    "400",
+                    "visitor_id_required",
+                    "Missing visitorId on track or form submit",
+                  ],
+                  [
+                    "400",
+                    "validation_failed",
+                    "Invalid event payload, batch size, properties size, or registered form field validation",
+                  ],
+                  [
+                    "404",
+                    "form_not_found",
+                    "Unknown form slug or UUID on registered form submit",
+                  ],
+                  [
+                    "429",
+                    "rate_limited",
+                    "More than 100 track events per visitor per minute",
+                  ],
                   [
                     "403",
                     "voice_unavailable",

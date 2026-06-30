@@ -1,68 +1,19 @@
 import type { CrmFieldMapping } from "@/lib/db/schema";
+import { findCompatibleCrmField } from "@/lib/integrations/sales-crm/crm-field-match";
 import type { SalesCrmField } from "@/lib/integrations/sales-crm/types";
-import type { PreChatField, PreChatFieldType } from "@/lib/pre-chat-form";
+import type { PreChatField } from "@/lib/pre-chat-form";
 
-const PRE_CHAT_TO_CRM_TYPES: Record<PreChatFieldType, string[]> = {
-  email: ["EMAIL"],
-  phone: ["PHONE"],
-  text: ["TEXT", "TEXTAREA"],
-  textarea: ["TEXTAREA", "TEXT"],
-  select: ["SELECT", "TEXT"],
-};
+export {
+  isSessionMappingReady,
+  SESSION_CRM_FIELD_KEYS,
+  type SessionCrmFieldKey,
+  sessionFieldKey,
+  suggestSessionMapping,
+  transformSessionData,
+} from "@/lib/integrations/sales-crm/session-fields";
 
 function normalizeLabel(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
-}
-
-function findCompatibleCrmField(
-  preChatField: PreChatField,
-  crmFields: SalesCrmField[],
-  usedKeys: Set<string>,
-): SalesCrmField | undefined {
-  const compatibleTypes = PRE_CHAT_TO_CRM_TYPES[preChatField.type];
-  const normalizedLabel = normalizeLabel(preChatField.label);
-
-  const exactLabelMatch = crmFields.find(
-    (crmField) =>
-      !usedKeys.has(crmField.key) &&
-      compatibleTypes.includes(crmField.type) &&
-      normalizeLabel(crmField.label) === normalizedLabel,
-  );
-
-  if (exactLabelMatch) {
-    return exactLabelMatch;
-  }
-
-  const fuzzyMatch = crmFields.find((crmField) => {
-    if (
-      usedKeys.has(crmField.key) ||
-      !compatibleTypes.includes(crmField.type)
-    ) {
-      return false;
-    }
-
-    const normalizedKey = normalizeLabel(crmField.key);
-    const normalizedCrmLabel = normalizeLabel(crmField.label);
-
-    return (
-      normalizedKey === normalizedLabel ||
-      normalizedCrmLabel.includes(normalizedLabel) ||
-      normalizedLabel.includes(normalizedCrmLabel)
-    );
-  });
-
-  if (fuzzyMatch) {
-    return fuzzyMatch;
-  }
-
-  if (preChatField.type === "email" || preChatField.type === "phone") {
-    return crmFields.find(
-      (crmField) =>
-        !usedKeys.has(crmField.key) && crmField.type === compatibleTypes[0],
-    );
-  }
-
-  return undefined;
 }
 
 export function suggestFieldMapping(
@@ -109,6 +60,142 @@ export function transformSubmissionResponses(
     const value = responses[fieldId];
     if (value !== undefined && value !== "") {
       fieldValues[crmKey] = value;
+    }
+  }
+
+  return fieldValues;
+}
+
+export const FREEFORM_CRM_FIELD_KEYS = [
+  "email",
+  "name",
+  "phone",
+  "company",
+  "message",
+] as const;
+
+export type FreeformCrmFieldKey = (typeof FREEFORM_CRM_FIELD_KEYS)[number];
+
+export function externalFormFieldKey(formId: string, fieldId: string): string {
+  return `external:${formId}:${fieldId}`;
+}
+
+export function freeformFieldKey(key: string): string {
+  return `external:freeform:${key}`;
+}
+
+export function suggestExternalFormMapping(
+  formId: string,
+  fields: PreChatField[],
+  crmFields: SalesCrmField[],
+): CrmFieldMapping {
+  const baseMapping = suggestFieldMapping(fields, crmFields);
+
+  return Object.fromEntries(
+    Object.entries(baseMapping).map(([fieldId, crmKey]) => [
+      externalFormFieldKey(formId, fieldId),
+      crmKey,
+    ]),
+  );
+}
+
+export function suggestFreeformMapping(
+  crmFields: SalesCrmField[],
+): CrmFieldMapping {
+  const mapping: CrmFieldMapping = {};
+  const usedKeys = new Set<string>();
+
+  for (const key of FREEFORM_CRM_FIELD_KEYS) {
+    const pseudoField: PreChatField = {
+      id: key,
+      label: key.charAt(0).toUpperCase() + key.slice(1),
+      type:
+        key === "email"
+          ? "email"
+          : key === "phone"
+            ? "phone"
+            : key === "message"
+              ? "textarea"
+              : "text",
+      required: false,
+    };
+
+    const match = findCompatibleCrmField(pseudoField, crmFields, usedKeys);
+
+    if (match) {
+      mapping[freeformFieldKey(key)] = match.key;
+      usedKeys.add(match.key);
+    }
+  }
+
+  return mapping;
+}
+
+export function isExternalFormMappingReady(
+  fields: PreChatField[],
+  mapping: CrmFieldMapping,
+  formId: string,
+): boolean {
+  if (fields.length === 0) {
+    return false;
+  }
+
+  return fields.some((field) =>
+    Boolean(mapping[externalFormFieldKey(formId, field.id)]?.trim()),
+  );
+}
+
+export function isFreeformMappingReady(mapping: CrmFieldMapping): boolean {
+  return FREEFORM_CRM_FIELD_KEYS.some((key) =>
+    Boolean(mapping[freeformFieldKey(key)]?.trim()),
+  );
+}
+
+export function transformExternalFormResponses(
+  responses: Record<string, string>,
+  mapping: CrmFieldMapping,
+  formId: string,
+): Record<string, string> {
+  const namespacedMapping: CrmFieldMapping = {};
+
+  for (const fieldId of Object.keys(responses)) {
+    const key = externalFormFieldKey(formId, fieldId);
+    if (mapping[key]) {
+      namespacedMapping[fieldId] = mapping[key];
+    }
+  }
+
+  return transformSubmissionResponses(responses, namespacedMapping);
+}
+
+export function transformFreeformResponses(
+  responses: Record<string, string>,
+  mapping: CrmFieldMapping,
+): Record<string, string> {
+  const fieldValues: Record<string, string> = {};
+
+  for (const [responseKey, value] of Object.entries(responses)) {
+    if (!value.trim()) {
+      continue;
+    }
+
+    const normalizedKey = normalizeLabel(responseKey);
+    const directMapping = mapping[freeformFieldKey(responseKey)];
+
+    if (directMapping?.trim()) {
+      fieldValues[directMapping] = value;
+      continue;
+    }
+
+    const matchedCommonKey = FREEFORM_CRM_FIELD_KEYS.find(
+      (key) => normalizeLabel(key) === normalizedKey,
+    );
+
+    if (matchedCommonKey) {
+      const crmKey = mapping[freeformFieldKey(matchedCommonKey)];
+      if (crmKey?.trim()) {
+        fieldValues[crmKey] = value;
+      }
     }
   }
 

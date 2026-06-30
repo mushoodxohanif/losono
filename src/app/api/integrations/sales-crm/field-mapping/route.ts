@@ -5,11 +5,20 @@ import {
   upsertCrmFieldMapping,
 } from "@/lib/db/queries/crm-field-mappings";
 import { getCrmIntegrationForUser } from "@/lib/db/queries/crm-integrations";
+import { listExternalFormsForAgent } from "@/lib/db/queries/external-forms";
 import { getSalesCrmCampaignFields } from "@/lib/integrations/sales-crm/client";
 import { SalesCrmError } from "@/lib/integrations/sales-crm/errors";
 import {
+  FREEFORM_CRM_FIELD_KEYS,
+  isExternalFormMappingReady,
   isFieldMappingReady,
+  isFreeformMappingReady,
+  isSessionMappingReady,
+  SESSION_CRM_FIELD_KEYS,
+  suggestExternalFormMapping,
   suggestFieldMapping,
+  suggestFreeformMapping,
+  suggestSessionMapping,
 } from "@/lib/integrations/sales-crm/field-mapping";
 import { getExportSummaryForAgent } from "@/lib/integrations/sales-crm/sync";
 import { isTokenEncryptionAvailable } from "@/lib/integrations/token-encryption";
@@ -69,6 +78,7 @@ export async function GET(request: Request) {
 
   const preChatForm = resolvePreChatForm(access.agent.settings.preChatForm);
   const mappingRow = await getCrmFieldMappingForAgent(integration.id, agentId);
+  const externalForms = await listExternalFormsForAgent(agentId);
 
   try {
     const crmFields = await getSalesCrmCampaignFields(
@@ -77,14 +87,41 @@ export async function GET(request: Request) {
     );
     const mapping = mappingRow?.mapping ?? {};
     const suggestedMapping = suggestFieldMapping(preChatForm.fields, crmFields);
-    const exportStats = await getExportSummaryForAgent(access.userId, agentId);
+    const exportSummary = await getExportSummaryForAgent(
+      access.userId,
+      agentId,
+    );
 
     return Response.json({
       mapping,
       suggestedMapping,
       crmFields,
       ready: isFieldMappingReady(preChatForm.fields, mapping),
-      exportStats,
+      exportStats: exportSummary?.preChat ?? null,
+      externalForms: externalForms.map((form) => ({
+        id: form.id,
+        name: form.name,
+        slug: form.slug,
+        fields: form.fields,
+        suggestedMapping: suggestExternalFormMapping(
+          form.id,
+          form.fields,
+          crmFields,
+        ),
+        ready: isExternalFormMappingReady(form.fields, mapping, form.id),
+      })),
+      freeform: {
+        keys: FREEFORM_CRM_FIELD_KEYS,
+        suggestedMapping: suggestFreeformMapping(crmFields),
+        ready: isFreeformMappingReady(mapping),
+      },
+      session: {
+        keys: SESSION_CRM_FIELD_KEYS,
+        suggestedMapping: suggestSessionMapping(crmFields),
+        ready: isSessionMappingReady(mapping),
+      },
+      externalExportStats: exportSummary?.externalForm ?? null,
+      sessionExportStats: exportSummary?.session ?? null,
     });
   } catch (error) {
     console.error("Failed to load field mapping:", error);
@@ -151,9 +188,16 @@ export async function PUT(request: Request) {
   });
 
   const preChatForm = resolvePreChatForm(access.agent.settings.preChatForm);
+  const externalForms = await listExternalFormsForAgent(agentId);
 
   return Response.json({
     mapping: updated.mapping,
     ready: isFieldMappingReady(preChatForm.fields, updated.mapping),
+    externalForms: externalForms.map((form) => ({
+      id: form.id,
+      ready: isExternalFormMappingReady(form.fields, updated.mapping, form.id),
+    })),
+    freeformReady: isFreeformMappingReady(updated.mapping),
+    sessionReady: isSessionMappingReady(updated.mapping),
   });
 }

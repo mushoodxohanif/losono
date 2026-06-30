@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import { DocsContent } from "@/components/docs/docs-content";
 import { getAppUrl } from "@/lib/app-url";
+
+export const metadata: Metadata = {
+  title: "Integration guide",
+  description:
+    "Integrate Losono on your website with the embed widget, custom chat API, or lead tracking (track.js) for external forms and click events. Includes Sales CRM sync documentation.",
+};
 
 export default function DocsPage() {
   const appUrl = getAppUrl();

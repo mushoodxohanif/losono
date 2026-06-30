@@ -1,7 +1,12 @@
 import { auth } from "@/auth";
 import { getAgentForUser } from "@/lib/db/queries/agents";
 import { SalesCrmError } from "@/lib/integrations/sales-crm/errors";
-import { exportAllForAgent } from "@/lib/integrations/sales-crm/sync";
+import {
+  type CrmExportLeadSource,
+  exportAllExternalForAgent,
+  exportAllForAgent,
+  exportAllSessionsForAgent,
+} from "@/lib/integrations/sales-crm/sync";
 import { isTokenEncryptionAvailable } from "@/lib/integrations/token-encryption";
 
 export async function POST(request: Request) {
@@ -21,6 +26,9 @@ export async function POST(request: Request) {
 
   const url = new URL(request.url);
   const agentId = url.searchParams.get("agentId");
+  const leadSource = url.searchParams.get(
+    "leadSource",
+  ) as CrmExportLeadSource | null;
 
   if (!agentId) {
     return Response.json({ error: "agent_id_required" }, { status: 400 });
@@ -33,7 +41,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await exportAllForAgent(userId, agentId);
+    const result =
+      leadSource === "external_form"
+        ? await exportAllExternalForAgent(userId, agentId)
+        : leadSource === "session"
+          ? await exportAllSessionsForAgent(userId, agentId)
+          : await exportAllForAgent(userId, agentId);
 
     return Response.json(result);
   } catch (error) {
